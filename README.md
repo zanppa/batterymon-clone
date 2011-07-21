@@ -29,9 +29,20 @@ Each one of the authors contributed a little in order to make _batterymon_ a bet
 
 ## Future improvements
 
-* Some code cleanup
-* Add back support to DBus, but using newer interfaces. See [battery-status][battery-status] project for inspiration.
+Here is a list of things you can do to help moving _batterymon_ forward:
+
+* Some code cleanup/refactor.
+* Add a COPYING or LICENSE file (see [issue 15 at Google Code][oldissue15]).
+* Add native GTK/freedesktop theme support (see [issue 16 at Google Code][oldissue15]).
+  * But built-in theme support should still be kept.
+* Add back support to DBus, but using newer interfaces. See [battery-status][battery-status] or [batti-gtk][batti] projects for inspiration.
   * But polling support should still be kept as fall-back.
+* Take a look at [issue list at Google Code][oldissues] and try fixing them.
+
+You do not need to ask for permission to fix them. Just fork this repository and start coding!
 
 [battery-status]: https://github.com/ia/battery-status/blob/master/battery-status
-
+[batti]: http://code.google.com/p/batti-gtk/
+[oldissue15]: http://code.google.com/p/batterymon/issues/detail?id=15
+[oldissue16]: http://code.google.com/p/batterymon/issues/detail?id=16
+[oldissues]: http://code.google.com/p/batterymon/issues/list
