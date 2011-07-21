@@ -2,7 +2,6 @@
 # -*- coding: utf-8 -*-
 # vi:ts=4 sw=4 et
 
-import dbus
 import pygtk
 import gtk
 import glib
@@ -40,6 +39,7 @@ except:
 
 # {{{ Program defaults
 VERSION="1.3.0"
+AUTHORS=["Matthew Horsell", "Tomas Kramar", "sayamindu", "Denilson Sá"]
 logger = logger_init()
 #}}}
 
@@ -434,7 +434,7 @@ class Systray(PowerEventListener):
         about_dg = gtk.AboutDialog()
         about_dg.set_name(_("Battery Monitor"))
         about_dg.set_version(VERSION)
-        about_dg.set_authors(["Matthew Horsell", "Tomas Kramar", "Denilson Sá"])
+        about_dg.set_authors(AUTHORS)
         about_dg.connect("response", lambda d, r: d.destroy())
         about_dg.show()
 
