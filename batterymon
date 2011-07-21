@@ -39,7 +39,7 @@ except:
 
 
 # {{{ Program defaults
-VERSION="1.1.2"
+VERSION="1.2.0"
 logger = logger_init()
 #}}}
 
@@ -466,12 +466,13 @@ class NotificationHelper:
 #{{{ commandline
 def passargs():
     parser = OptionParser(usage='usage: %prog [options] ', version=VERSION, description="Simple Battery Monitor")
-    parser.add_option("-t", "--theme", action="store", help="set icon theme", dest="theme", default="default")
-    parser.add_option("-n", "--notify-at", action="store", help="notify me when battery level is lower than the provided value", dest="notification_level", default="10")
-    parser.add_option("-c", "--critical", action="store", help="set critical level", dest="critical_level", default="5")
+    parser.add_option("-n", "--notify-at"  , action="store", help="notify me when battery level is lower than the provided value", dest="notification_level", default="10")
+    parser.add_option("-c", "--critical"   , action="store", help="set critical level", dest="critical_level", default="5")
     parser.add_option("-e", "--on-critical", action="store", help="run this command on critical power level", dest="critical_command", default=None)
+    parser.add_option("-i", "--interval"   , action="store", help="polling interval (in seconds)" , dest="polling_interval", default="10")
+    parser.add_option("-t", "--theme"      , action="store", help="set icon theme", dest="theme", default="default")
     parser.add_option("-l", "--list-themes", action="store_true", help="list all avalable themes", dest="list_themes", default=False)
-    parser.add_option("-d", "--debug"      , action="store_true",help="run in debug mode" , dest="debug", default=False)
+    parser.add_option("-d", "--debug"      , action="store_true", help="run in debug mode" , dest="debug", default=False)
     (options, args) = parser.parse_args()
 
     return options
@@ -563,8 +564,8 @@ def main():
     cmdline = passargs()
 
     if cmdline.list_themes:
-            Theme.list_all_themes()
-            sys.exit(1)
+        Theme.list_all_themes()
+        sys.exit(1)
     if cmdline.debug:
         logger.set_level("debug")
 
@@ -580,7 +581,7 @@ def main():
     pm.listeners.append(executor)
 
     pm.update()
-    glib.timeout_add_seconds(10, pm.update)
+    glib.timeout_add_seconds(int(cmdline.polling_interval), pm.update)
 
     gtk.main()
 
