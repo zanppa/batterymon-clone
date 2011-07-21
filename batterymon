@@ -10,12 +10,19 @@ import gettext
 
 _ = lambda msg: gettext.dgettext('batterymon', msg)
 
-## code modules
+# {{{ code modules
 #from preferences import prefs
-from batterymon.logger import logger_init
 #from settings import config
+try:
+    # Try importing from the system-wide directory
+    from batterymon.logger import logger_init
+except ImportError:
+    # Try importing from the same directory
+    from logger import logger_init
+#}}}
 
-#{{{ Desktop notifications init
+
+# {{{ Desktop notifications init
 try:
     import pynotify
     if not pynotify.init("Battery Monitor"):
