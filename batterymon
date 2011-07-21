@@ -1,10 +1,15 @@
 #!/usr/bin/env python
+# -*- coding: utf-8 -*-
+# vi:ts=4 sw=4 et
 
 import dbus
 import pygtk
 import gtk
+import glib
 from optparse import OptionParser
-import os,sys
+from collections import namedtuple
+import os
+import sys
 
 import gettext
 
@@ -33,78 +38,106 @@ except:
 #}}}
 
 
-#{{{ Program defaults
+# {{{ Program defaults
 VERSION="1.1.2"
 theme="default"
 logger = logger_init()
 #}}}
 
 
-# {{{ DBUSObject
-class DBusObject:
+# {{{ Utility to parse /proc/acpi/*/*/* files
+def parse_proc_acpi_file(f):
+    '''"f" must be a File-like object.
+
+    Returns the parsed data as a dict.
+    '''
+
+    d = {}
+    for line in f:
+        if ':' in line:
+            key, value = line.split(':', 1)
+            key = key.strip()
+            value = value.strip()
+            d[key] = value
+
+    return d
+#}}}
+
+
+# {{{ AcAdapterDetector
+class AcAdapterDetector:
     def __init__(self):
-        self.bus = dbus.SystemBus()
-        hal_obj = self.bus.get_object('org.freedesktop.Hal', '/org/freedesktop/Hal/Manager')
-        self.hal = dbus.Interface(hal_obj, 'org.freedesktop.Hal.Manager')
+        pass
+
+    def get_all(self):
+        basepath = '/proc/acpi/ac_adapter'
+        ac_adapters = []
+
+        for name in os.listdir(basepath):
+            # dirname is '/proc/acpi/ac_adapter/AC0'
+            dirname = os.path.join(basepath, name)
+            ac_adapters.append(AcAdapter(dirname))
+
+        logger.debug("Found %d AC adapter(s)" % len(ac_adapters))
+
+        return ac_adapters
 #}}}
 
 
 # {{{ AcAdapter
-class AcAdapter(DBusObject):
-    def __init__(self):
-        DBusObject.__init__(self)
+class AcAdapter:
+    def __init__(self, dirname):
         self.property_modified_handler = None
 
-        udis = self.hal.FindDeviceByCapability('ac_adapter')
+        self.__dirname = dirname
+        self.__state_filename = os.path.join(dirname, 'state')
 
-        if len(udis) == 0:
+        # True = on line; False = off-line
+        self.__old_state = True
+
+        if not os.path.isfile(self.__state_filename):
             raise Exception("No AC adapter found")
 
-        # take the first adapter
-        adapter_obj = self.bus.get_object('org.freedesktop.Hal', udis[0])
-        self.__adapter = dbus.Interface(adapter_obj, 'org.freedesktop.Hal.Device')
-        self.__adapter.connect_to_signal('PropertyModified', self.__on_property_modified)
-
     def update(self):
-        present = self.__adapter.GetProperty('ac_adapter.present')
-        logger.debug("Adapter is present: %s" % present)
+        with open(self.__state_filename) as f:
+            data = parse_proc_acpi_file(f)
 
-        if self.property_modified_handler:
-            self.property_modified_handler(present)
+        state = data.get('state', None)
+        if state == 'on-line':
+            present = True
+        elif state == 'off-line':
+            present = False
         else:
-            logger.warn("No AC adapter property modified handler, ignoring status update")
-
-
-    def __on_property_modified(self, num_changes, property):
-        property_name, added, removed = property[0]
-
-        if property_name != "ac_adapter.present":
-            logger.debug("HAL AC adapter property modified")
+            # Unknown or missing value
             return
 
-        logger.debug("HAL AC adapter present modified")
+        logger.debug("Adapter is present: %s" % present)
 
-        self.update()
+        if self.__old_state != present:
+            if self.property_modified_handler:
+                self.property_modified_handler(present)
+            else:
+                logger.warn("No AC adapter property modified handler, ignoring status update")
+
+        self.__old_state = present
 #}}}
 
 
 # {{{ BatteryDetector
-class BatteryDetector(DBusObject):
+class BatteryDetector:
     def __init__(self):
-        DBusObject.__init__(self)
+        pass
 
     def get_all(self):
-        udis = self.hal.FindDeviceByCapability('battery')
-
-        logger.debug("Found %s battery(ies)" % str(len(udis)))
-
+        basepath = '/proc/acpi/battery'
         batteries = []
 
-        for udi in udis:
-            battery_obj = self.bus.get_object('org.freedesktop.Hal', udi)
-            battery = dbus.Interface(battery_obj, 'org.freedesktop.Hal.Device')
+        for name in os.listdir(basepath):
+            # dirname is '/proc/acpi/battery/BAT0'
+            dirname = os.path.join(basepath, name)
+            batteries.append(Battery(dirname))
 
-            batteries.append(Battery(battery))
+        logger.debug("Found %d battery(ies)" % len(batteries))
 
         return batteries
 #}}}
@@ -112,40 +145,64 @@ class BatteryDetector(DBusObject):
 
 # {{{ Battery
 class Battery:
-    def __init__(self, battery):
+    def __init__(self, dirname):
         self.property_modified_handler = None
-        self.__battery = battery
-        self.__battery.connect_to_signal('PropertyModified', self.__on_property_modified)
+
+        self.__dirname = dirname
+        self.__state_filename = os.path.join(dirname, 'state')
+        self.__info_filename = os.path.join(dirname, 'info')
+
         self.remaining_time = "unknown"  ## added this or the program crashes on a full battery
 
-    def __on_property_modified(self, num_changes, property):
-        property_name, added, removed = property[0]
-
-        logger.debug("Battery property %s modified" % property_name)
-
-        self.update()
-
     def update(self):
-        present = self.__battery.GetProperty('battery.present')
+        with open(self.__state_filename) as f:
+            data = parse_proc_acpi_file(f)
+        with open(self.__info_filename) as f:
+            data.update(parse_proc_acpi_file(f))
+
+        present = (data.get('present', None) == 'yes')
         logger.debug("battery.present: %s" % str(present))
 
-        #XXX: check if the battery is rechargable first
-        is_charging = self.__battery.GetProperty('battery.rechargeable.is_charging')
-        logger.debug("battery.is_charging: %s" % str(is_charging))
+        charging_state = data.get('charging state', None)
+        if charging_state == 'charged':
+            is_charging = False
+            is_discharging = False
+        elif charging_state == 'charging':
+            is_charging = True
+            is_discharging = False
+        elif charging_state == 'discharging':
+            is_charging = False
+            is_discharging = True
 
-        is_discharging = self.__battery.GetProperty('battery.rechargeable.is_discharging')
+        logger.debug("battery.is_charging: %s" % str(is_charging))
         logger.debug("battery.is_discharging: %s" % str(is_discharging))
 
-        charge_level = self.__battery.GetProperty('battery.charge_level.percentage')
+        design_capacity = data.get('design capacity', None)
+        remaining_capacity = data.get('remaining capacity', None)
+        present_rate = data.get('present rate', None)
+
+        if design_capacity:
+            # '51260 mWh' -> 51260
+            design_capacity = int(design_capacity.split()[0])
+        if remaining_capacity:
+            # '28435 mWh' -> 28435
+            remaining_capacity = int(remaining_capacity.split()[0])
+        if present_rate:
+            # '23111 mW' -> 23111
+            present_rate = int(present_rate.split()[0])
+
+        if design_capacity and remaining_capacity:
+            charge_level = 100 * remaining_capacity / design_capacity
+        else:
+            charge_level = 0
         logger.debug("battery.percentage: %s" % str(charge_level))
 
-        try:
-            remaining_time = self.__battery.GetProperty('battery.remaining_time')
-            logger.debug("battery.remaining_time: %s" % str(remaining_time))
-
-        except dbus.DBusException, e:
-            logger.error(e)
+        # Converting mWh to mWs, and then dividing by mW, result is seconds
+        if present_rate:
+            remaining_time = (remaining_capacity * 60 * 60) // present_rate
+        else:
             remaining_time = -1
+        logger.debug("battery.remaining_time: %s" % str(remaining_time))
 
         remaining_time = self.__str_time(remaining_time)
 
@@ -155,12 +212,12 @@ class Battery:
             logger.warn("No property modified handler, ignoring battery status update")
 
     def __str_time(self, seconds):
-        if seconds < 0:
+        if seconds <= 0:
             return 'Unknown'
 
-        minutes = seconds / 60
+        minutes = seconds // 60
 
-        hours = minutes / 60
+        hours = minutes // 60
         minutes = minutes % 60
 
         logger.debug("Minutes: %s" % str(minutes))
@@ -177,6 +234,8 @@ class Battery:
         else:
             return "%s %s" % (time, plural)
 #}}}
+
+BatteryInfo = namedtuple('BatteryInfo', 'charge_level remaining_time is_charging is_discharging present')
 
 
 #{{{ Theme
@@ -236,17 +295,6 @@ class PowerEventListener:
     def battery_property_modified(self, battery_info):
         pass
 #}}}
-
-
-# {{{ BatteryInfo
-class BatteryInfo:
-    def __init__(self, charge_level, remaining_time, is_charging, is_discharging, present):
-        self.charge_level = charge_level
-        self.remaining_time = remaining_time
-        self.is_charging = is_charging
-        self.is_discharging = is_discharging
-        self.present = present
-# }}}
 
 
 # {{{ Systray
@@ -374,7 +422,7 @@ class Systray(PowerEventListener):
         about_dg = gtk.AboutDialog()
         about_dg.set_name(_("Battery Monitor"))
         about_dg.set_version(VERSION)
-        about_dg.set_authors(["Matthew Horsell", "Tomas Kramar"])
+        about_dg.set_authors(["Matthew Horsell", "Tomas Kramar", "Denilson Sá"])
         about_dg.connect("response", lambda d, r: d.destroy())
         about_dg.show()
 
@@ -392,7 +440,6 @@ class NotificationHelper:
         if pynotify:
             n = pynotify.Notification(title, message)
             iconf = theme.get_icon(icon)
-            print "TEST " + systray.Icon_name
             logger.debug("DEBUG Notification icon " +iconf)
             icon = gtk.gdk.pixbuf_new_from_file_at_size(iconf, 46, 46)
             n.set_icon_from_pixbuf(icon)
@@ -422,14 +469,12 @@ class commandline:
 # {{{ PowerManager
 class PowerManager:
     def __init__(self):
-        from dbus.mainloop.glib import DBusGMainLoop
-        DBusGMainLoop(set_as_default=True)
-
         self.listeners = []
-        self.adapter = AcAdapter()
+        self.adapters = AcAdapterDetector().get_all()
         self.batteries = BatteryDetector().get_all()
 
-        self.adapter.property_modified_handler = self.__ac_property_modified_handler
+        for adapter in self.adapters:
+            adapter.property_modified_handler = self.__ac_property_modified_handler
 
         for battery in self.batteries:
             battery.property_modified_handler = self.__battery_property_modified_handler
@@ -443,8 +488,16 @@ class PowerManager:
             listener.battery_property_modified(battery)
 
     def update(self):
+        print "update!"
+        for adapter in self.adapters:
+            adapter.update()
+
         for battery in self.batteries:
             battery.update()
+
+        # Since this is being called on a GTK timer, it needs to return True
+        # (if it returns False, the timer stops)
+        return True
 # }}}
 
 
@@ -532,6 +585,7 @@ if __name__ == "__main__":
     pm.listeners.append(executor)
 
     pm.update()
+    glib.timeout_add_seconds(10, pm.update)
 
     gtk.main()
 
