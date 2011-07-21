@@ -30,8 +30,8 @@ Each one of the authors contributed a little in order to make _batterymon_ a bet
 ## Future improvements
 
 * Some code cleanup
-* Add back support to DBus, but using newer interfaces. See [battery-status][battery-status] project for inspiration.
+* Add back support to DBus, but using newer interfaces. See [battery-status][batterystatus] project for inspiration.
   * But polling support should still be kept as fall-back.
 
-[battery-status] https://github.com/ia/battery-status/blob/master/battery-status
+[batterystatus] https://github.com/ia/battery-status/blob/master/battery-status
 
