@@ -1,0 +1,19 @@
+This directory contains the "source files" for the icon themes.
+
+These files don't need to be installed and are not required by batterymon.
+However, they are useful for modifying or creating new themes.
+
+
+Themes: "16x16" and "24x24"
+Author: Denilson Sá
+Comments:
+  "battery.svg" is original file, made in Inkscape. The colors were chosen
+  from the Tango palette. It was later exported to PNG bitmap and then imported
+  into Gimp.
+
+  "battery.xcf" is the Gimp file, broken in several layers. For each final
+  battery theme icon, a different set of layers was marked as visible and
+  result was saves as PNG.
+
+  These themes were previously posted at:
+  http://code.google.com/p/batterymon/issues/detail?id=5
