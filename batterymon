@@ -40,7 +40,6 @@ except:
 
 # {{{ Program defaults
 VERSION="1.1.2"
-theme="default"
 logger = logger_init()
 #}}}
 
@@ -240,6 +239,9 @@ BatteryInfo = namedtuple('BatteryInfo', 'charge_level remaining_time is_charging
 
 #{{{ Theme
 class Theme:
+    local_path = os.path.join(os.path.dirname(os.path.abspath(__file__)), 'icons')
+    system_path = '/usr/share/batterymon/icons'
+
     def __init__(self, theme):
         self.theme = theme
         self.iconpath = self.__resolve_iconpath()
@@ -255,15 +257,26 @@ class Theme:
         logger.debug("Theme %s validated" % self.theme)
 
     def __resolve_iconpath(self):
-        if os.path.isdir('./icons/' + theme):
-            logger.debug('Using local icons')
-            return './'
-        else:
-            logger.debug('Using /usr/share')
-            return  '/usr/share/batterymon'
+        for path in [self.local_path, self.system_path]:
+            themedir = os.path.join(path, self.theme)
+            if os.path.isdir(themedir):
+                logger.debug('Using %s' % (themedir,))
+                return themedir
+
+    @classmethod
+    def list_all_themes(cls):
+        print "Themes:"
+        temp = []
+        for path in [cls.local_path, cls.system_path]:
+            try:
+                temp.extend(os.listdir(path))
+            except OSError:
+                pass
+        temp.sort()
+        print str(temp)
 
     def get_icon(self, name):
-        return "%s/icons/%s/battery_%s.png" % (self.iconpath, self.theme, name)
+        return os.path.join(self.iconpath, "battery_%s.png" % (name,))
 
     def file_exists(self, f):
         try:
@@ -338,7 +351,6 @@ class Systray(PowerEventListener):
             logger.debug("Charging\n Battery Percentage %s" % battery.charge_level)
 
         elif battery.is_discharging:
-
             self.tray_object.set_tooltip(_("Battery Level: %s%% \nTime remaining %s") % (battery.charge_level, battery.remaining_time))
             logger.debug("Battery Percentage %s \nTime remainging: %s" % (battery.charge_level, battery.remaining_time))
 
@@ -436,10 +448,13 @@ class Systray(PowerEventListener):
 
 #{{{ Notification
 class NotificationHelper:
+    def __init__(self, theme):
+        self.theme = theme
+
     def notify(self, title, message, icon):
         if pynotify:
             n = pynotify.Notification(title, message)
-            iconf = theme.get_icon(icon)
+            iconf = self.theme.get_icon(icon)
             logger.debug("DEBUG Notification icon " +iconf)
             icon = gtk.gdk.pixbuf_new_from_file_at_size(iconf, 46, 46)
             n.set_icon_from_pixbuf(icon)
@@ -449,20 +464,17 @@ class NotificationHelper:
 
 
 #{{{ commandline
-class commandline:
-    def passargs(self,arg):
-        parser = OptionParser(usage='usage: %prog [options] ', version=VERSION, description="Simple Battery Monitor")
-        parser.add_option("-t","--theme",action="store",help="set icon theme",dest="theme",default="default")
-        parser.add_option("-n", "--notify-at", action="store", help="notify me when battery level is lower than the provided value", dest="notification_level", default="10")
-        parser.add_option("-c", "--critical", action="store", help="set critical level", dest="critical_level", default="5")
-        parser.add_option("-e", "--on-critical", action="store", help="run this command on critical power level", dest="critical_command", default=None)
-        parser.add_option("-l", "--list-themes", action="store_true", help="list all avalable themes", dest="list_themes", default=False)
-        parser.add_option("-d", "--debug"      , action="store_true",help="run in debug mode" , dest="debug", default=False)
-        (options, args) = parser.parse_args()
+def passargs():
+    parser = OptionParser(usage='usage: %prog [options] ', version=VERSION, description="Simple Battery Monitor")
+    parser.add_option("-t", "--theme", action="store", help="set icon theme", dest="theme", default="default")
+    parser.add_option("-n", "--notify-at", action="store", help="notify me when battery level is lower than the provided value", dest="notification_level", default="10")
+    parser.add_option("-c", "--critical", action="store", help="set critical level", dest="critical_level", default="5")
+    parser.add_option("-e", "--on-critical", action="store", help="run this command on critical power level", dest="critical_command", default=None)
+    parser.add_option("-l", "--list-themes", action="store_true", help="list all avalable themes", dest="list_themes", default=False)
+    parser.add_option("-d", "--debug"      , action="store_true",help="run in debug mode" , dest="debug", default=False)
+    (options, args) = parser.parse_args()
 
-        if arg=="none":
-            parser.print_help()
-        return options
+    return options
 #}}}
 
 
@@ -488,7 +500,6 @@ class PowerManager:
             listener.battery_property_modified(battery)
 
     def update(self):
-        print "update!"
         for adapter in self.adapters:
             adapter.update()
 
@@ -503,8 +514,8 @@ class PowerManager:
 
 # {{{ Notificator
 class Notificator(PowerEventListener):
-    def __init__(self, low_level=-1, critical_level=-1):
-        self.n = NotificationHelper()
+    def __init__(self, theme, low_level=-1, critical_level=-1):
+        self.n = NotificationHelper(theme)
         self.low_level = low_level
         self.notified = False
         self.critical_level = critical_level
@@ -513,7 +524,7 @@ class Notificator(PowerEventListener):
 
     def ac_property_modified(self, present):
         if present:
-            self.n.notify(_("On AC"), _("You are currently running on AC"),"charging_empty")
+            self.n.notify(_("On AC"), _("You are currently running on AC"),"charging_full")
         else:
             self.n.notify(_("On Battery"), _("AC adapter unplugged, running on battery"),"full")
 
@@ -548,27 +559,11 @@ class CommandRunner(PowerEventListener):
 #}}}
 
 
-#{{{ List all Themes
-class list_themes:
-    def list_all_themes(self):
-        print "Themes:"
-        temp = os.listdir("/usr/share/batterymon/icons")
-        print str(temp)
-        return
-#}}}
-
-
-if __name__ == "__main__":
-
-    options = commandline()
-
-    cmdline = options.passargs("") ## pass command line options
-
-    ## not sure on this yet? might be handy if the theme base grows
+def main():
+    cmdline = passargs()
 
     if cmdline.list_themes:
-            test = list_themes()
-            test.list_all_themes()
+            Theme.list_all_themes()
             sys.exit(1)
     if cmdline.debug:
         logger.set_level("debug")
@@ -576,7 +571,7 @@ if __name__ == "__main__":
     theme = Theme(cmdline.theme)
 
     systray = Systray(theme)
-    notificator = Notificator(int(cmdline.notification_level), int(cmdline.critical_level))
+    notificator = Notificator(theme, int(cmdline.notification_level), int(cmdline.critical_level))
     executor = CommandRunner(int(cmdline.critical_level), cmdline.critical_command)
 
     pm = PowerManager()
@@ -589,3 +584,5 @@ if __name__ == "__main__":
 
     gtk.main()
 
+if __name__ == "__main__":
+    main()
