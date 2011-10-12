@@ -9,20 +9,14 @@ from optparse import OptionParser
 from collections import namedtuple
 import os
 import sys
-
+import logging
 import gettext
-
-_ = lambda msg: gettext.dgettext('batterymon', msg)
-
 
 #from preferences import prefs
 #from settings import config
-try:
-    # Try importing from the system-wide directory
-    from batterymon.logger import logger_init
-except ImportError:
-    # Try importing from the same directory
-    from logger import logger_init
+
+_ = lambda msg: gettext.dgettext('batterymon', msg)
+logger = logging.getLogger("batterymon")
 
 
 # Desktop notifications init
@@ -37,7 +31,6 @@ except:
 
 VERSION="1.4.0"
 AUTHORS=["Matthew Horsell", "Tomas Kramar", "sayamindu", "Denilson Sá"]
-logger = logger_init()
 
 
 def cat(dirname, filename=None):
@@ -87,7 +80,6 @@ def detect_AcAdapters_and_Batteries():
                 logger.debug('Unknown type "{0}" for {1}'.format(devtype, dirname))
         except IOError as e:
             # I'm not using logger.exception() because this is not an error.
-            # TODO: pass this kwarg: exc_info=True
             logger.debug('Exception while detecting "{0}": {1}'.format(dirname, e))
 
     logger.debug('Found {0} AC adapter(s) and {1} battery(ies)'.format(len(ac_adapters), len(batteries)))
@@ -537,13 +529,17 @@ class CommandRunner(PowerEventListener):
 
 
 def main():
+    logging.basicConfig(
+        level=logging.INFO,
+        format='%(asctime)s %(filename)s[%(lineno)d]: %(levelname)s %(message)s')
+
     cmdline = parse_args()
 
     if cmdline.list_themes:
         Theme.list_all_themes()
         sys.exit(1)
     if cmdline.debug:
-        logger.set_level("debug")
+        logger.setLevel(logging.DEBUG)
 
     theme = Theme(cmdline.theme)
 

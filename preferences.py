@@ -3,9 +3,10 @@
 # It was left here because someday we might add the preferences window back.
 
 import gtk
-from logger import logger_init
+import logging
 from settings import config
-logger = logger_init()
+
+logger = logging.getLogger("batterymon")
 settings = config()
 
 
