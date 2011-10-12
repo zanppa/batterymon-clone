@@ -58,22 +58,32 @@ def parse_proc_acpi_file(f):
     return d
 
 
-class AcAdapterDetector:
-    def __init__(self):
-        pass
+def detect_AcAdapters():
+    basepath = '/proc/acpi/ac_adapter'
+    ac_adapters = []
 
-    def get_all(self):
-        basepath = '/proc/acpi/ac_adapter'
-        ac_adapters = []
+    for name in os.listdir(basepath):
+        # dirname is '/proc/acpi/ac_adapter/AC0'
+        dirname = os.path.join(basepath, name)
+        ac_adapters.append(AcAdapter(dirname))
 
-        for name in os.listdir(basepath):
-            # dirname is '/proc/acpi/ac_adapter/AC0'
-            dirname = os.path.join(basepath, name)
-            ac_adapters.append(AcAdapter(dirname))
+    logger.debug("Found %d AC adapter(s)" % len(ac_adapters))
 
-        logger.debug("Found %d AC adapter(s)" % len(ac_adapters))
+    return ac_adapters
 
-        return ac_adapters
+
+def detect_Batteries():
+    basepath = '/proc/acpi/battery'
+    batteries = []
+
+    for name in os.listdir(basepath):
+        # dirname is '/proc/acpi/battery/BAT0'
+        dirname = os.path.join(basepath, name)
+        batteries.append(Battery(dirname))
+
+    logger.debug("Found %d battery(ies)" % len(batteries))
+
+    return batteries
 
 
 class AcAdapter:
@@ -111,24 +121,6 @@ class AcAdapter:
                 logger.warn("No AC adapter property modified handler, ignoring status update")
 
         self.__old_state = present
-
-
-class BatteryDetector:
-    def __init__(self):
-        pass
-
-    def get_all(self):
-        basepath = '/proc/acpi/battery'
-        batteries = []
-
-        for name in os.listdir(basepath):
-            # dirname is '/proc/acpi/battery/BAT0'
-            dirname = os.path.join(basepath, name)
-            batteries.append(Battery(dirname))
-
-        logger.debug("Found %d battery(ies)" % len(batteries))
-
-        return batteries
 
 
 class Battery:
@@ -459,8 +451,8 @@ def parse_args():
 class PowerManager:
     def __init__(self):
         self.listeners = []
-        self.adapters = AcAdapterDetector().get_all()
-        self.batteries = BatteryDetector().get_all()
+        self.adapters = detect_AcAdapters()
+        self.batteries = detect_Batteries()
 
         for adapter in self.adapters:
             adapter.property_modified_handler = self.__ac_property_modified_handler
