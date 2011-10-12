@@ -47,6 +47,7 @@ Here is a list of things you can do to help moving _batterymon_ forward:
   * But polling support should still be kept as fall-back.
 * Take a look at [issue list at Google Code][oldissues] and try fixing them.
 * Port to Python 3
+* Update i18n
 
 You do not need to ask for permission to fix them. Just fork this repository and start coding!
 
