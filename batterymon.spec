@@ -2,11 +2,11 @@
 
 Summary: Battery level indicator for the GNOME panel
 Name:    batterymon
-Version: 1.2.4
+Version: 1.4.0
 Release: 1%{?dist}
 License: LGPLv2+
 Group:   Applications/System
-URL:     http://code.google.com/p/batterymon
+URL:     https://github.com/denilsonsa/batterymon-clone/
 Source0: %{name}-%{version}.tar.gz
 BuildRoot: %{_tmppath}/%{name}-%{version}-%{release}-root-%(%{__id_u} -n)
 Requires: notify-python
