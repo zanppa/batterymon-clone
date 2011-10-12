@@ -14,7 +14,7 @@ import gettext
 
 _ = lambda msg: gettext.dgettext('batterymon', msg)
 
-# {{{ code modules
+
 #from preferences import prefs
 #from settings import config
 try:
@@ -23,10 +23,9 @@ try:
 except ImportError:
     # Try importing from the same directory
     from logger import logger_init
-#}}}
 
 
-# {{{ Desktop notifications init
+# Desktop notifications init
 try:
     import pynotify
     if not pynotify.init("Battery Monitor"):
@@ -34,17 +33,14 @@ try:
 except:
     print(_("You do not seem to have python-notify installed. Notifications won't work."))
     pynotify = None
-#}}}
 
 
-# {{{ Program defaults
-VERSION="1.3.0"
+VERSION="1.3.1"
 AUTHORS=["Matthew Horsell", "Tomas Kramar", "sayamindu", "Denilson Sá"]
 logger = logger_init()
-#}}}
 
 
-# {{{ Utility to parse /proc/acpi/*/*/* files
+# Utility to parse /proc/acpi/*/*/* files
 def parse_proc_acpi_file(f):
     '''"f" must be a File-like object.
 
@@ -60,10 +56,8 @@ def parse_proc_acpi_file(f):
             d[key] = value
 
     return d
-#}}}
 
 
-# {{{ AcAdapterDetector
 class AcAdapterDetector:
     def __init__(self):
         pass
@@ -80,10 +74,8 @@ class AcAdapterDetector:
         logger.debug("Found %d AC adapter(s)" % len(ac_adapters))
 
         return ac_adapters
-#}}}
 
 
-# {{{ AcAdapter
 class AcAdapter:
     def __init__(self, dirname):
         self.property_modified_handler = None
@@ -119,10 +111,8 @@ class AcAdapter:
                 logger.warn("No AC adapter property modified handler, ignoring status update")
 
         self.__old_state = present
-#}}}
 
 
-# {{{ BatteryDetector
 class BatteryDetector:
     def __init__(self):
         pass
@@ -139,10 +129,8 @@ class BatteryDetector:
         logger.debug("Found %d battery(ies)" % len(batteries))
 
         return batteries
-#}}}
 
 
-# {{{ Battery
 class Battery:
     def __init__(self, dirname):
         self.property_modified_handler = None
@@ -232,12 +220,11 @@ class Battery:
             return "1 %s" % singular
         else:
             return "%s %s" % (time, plural)
-#}}}
+
 
 BatteryInfo = namedtuple('BatteryInfo', 'charge_level remaining_time is_charging is_discharging present')
 
 
-#{{{ Theme
 class Theme:
     local_path = os.path.join(os.path.dirname(os.path.abspath(__file__)), 'icons')
     system_path = '/usr/share/batterymon/icons'
@@ -297,20 +284,16 @@ class Theme:
                 return False
 
         return True
-#}}}
 
 
-# {{{ PowerEventListener
 class PowerEventListener:
     def ac_property_modified(self, present):
         pass
 
     def battery_property_modified(self, battery_info):
         pass
-#}}}
 
 
-# {{{ Systray
 class Systray(PowerEventListener):
     def __init__(self, theme):
         self.theme = theme
@@ -365,43 +348,43 @@ class Systray(PowerEventListener):
 
 
         if battery.charge_level > 96:
-            if battery.is_charging ==0:
+            if battery.is_charging == 0:
                 self.set_icon("full")
             else:
                 self.set_icon("charging_full")
                 self.tray_object.set_blinking(False)
 
         elif battery.charge_level > 80:
-            if battery.is_charging ==0:
+            if battery.is_charging == 0:
                 self.set_icon("5")
             else:
                 self.set_icon("charging_5")
 
         elif battery.charge_level > 64:
-            if battery.is_charging ==0:
+            if battery.is_charging == 0:
                 self.set_icon("4")
             else:
                 self.set_icon("charging_4")
 
         elif battery.charge_level > 48:
-            if battery.is_charging ==0:
+            if battery.is_charging == 0:
                 self.set_icon("3")
             else:
                 self.set_icon("charging_3")
 
         elif battery.charge_level > 32:
-            if battery.is_charging ==0:
+            if battery.is_charging == 0:
                 self.set_icon("2")
             else:
                 self.set_icon("charging_2")
 
         elif battery.charge_level >16:
-            if battery.is_charging ==0:
+            if battery.is_charging == 0:
                 self.set_icon("1")
             else:
                 self.set_icon("charging_1")
         else:
-            if battery.is_charging ==0:
+            if battery.is_charging == 0:
                 self.set_icon("empty")
                 self.tray_object.set_blinking(True)
             else:
@@ -415,8 +398,7 @@ class Systray(PowerEventListener):
         about_menu.connect('activate', self.about)
         exit_menu = gtk.ImageMenuItem(gtk.STOCK_CLOSE)
         exit_menu.connect('activate', self.close)
-        pref_menu = gtk.ImageMenuItem(gtk.STOCK_PREFERENCES
-)
+        pref_menu = gtk.ImageMenuItem(gtk.STOCK_PREFERENCES)
         pref_menu.connect('activate',self.preferences)
         menu.append(about_menu)
         #menu.append(pref_menu)
@@ -443,10 +425,8 @@ class Systray(PowerEventListener):
         self.Icon_name = name
         logger.debug("Icon updated")
         logger.debug("Icon Name: %s" % name)
-#}}}
 
 
-#{{{ Notification
 class NotificationHelper:
     def __init__(self, theme):
         self.theme = theme
@@ -460,11 +440,9 @@ class NotificationHelper:
             n.set_icon_from_pixbuf(icon)
             n.show()
             logger.debug("Notification shown")
-#}}}
 
 
-#{{{ commandline
-def passargs():
+def parse_args():
     parser = OptionParser(usage='usage: %prog [options] ', version=VERSION, description="Simple Battery Monitor")
     parser.add_option("-n", "--notify-at"  , action="store", help="notify me when battery level is lower than the provided value", dest="notification_level", default="10")
     parser.add_option("-c", "--critical"   , action="store", help="set critical level", dest="critical_level", default="5")
@@ -476,10 +454,8 @@ def passargs():
     (options, args) = parser.parse_args()
 
     return options
-#}}}
 
 
-# {{{ PowerManager
 class PowerManager:
     def __init__(self):
         self.listeners = []
@@ -510,10 +486,8 @@ class PowerManager:
         # Since this is being called on a GTK timer, it needs to return True
         # (if it returns False, the timer stops)
         return True
-# }}}
 
 
-# {{{ Notificator
 class Notificator(PowerEventListener):
     def __init__(self, theme, low_level=-1, critical_level=-1):
         self.n = NotificationHelper(theme)
@@ -544,10 +518,8 @@ class Notificator(PowerEventListener):
 
         if battery.is_charging and battery.charge_level > self.low_level:
             self.notify = False
-#}}}
 
 
-#{{{ CommandRunner
 class CommandRunner(PowerEventListener):
     def __init__(self, power_level, command):
         self.power_level = power_level
@@ -557,11 +529,10 @@ class CommandRunner(PowerEventListener):
         if int(battery.charge_level) <= int(self.power_level) and self.command:
             logger.debug("Running command '%s'" % self.command)
             os.system(self.command)
-#}}}
 
 
 def main():
-    cmdline = passargs()
+    cmdline = parse_args()
 
     if cmdline.list_themes:
         Theme.list_all_themes()
