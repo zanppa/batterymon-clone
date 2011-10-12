@@ -2,14 +2,22 @@
 
 ## Summary
 
-**batterymon-clone** is a simple battery monitor tray icon.
+**batterymon-clone** is a simple battery monitor tray icon for Linux.
 
 * Written in `Python`
 * Should work on any desktop environment
 * Very little dependencies: just `Python` and `PyGTK`
 * Optional support for `notify-python`, for notifications using `libnotify`
 
-The current implementation reads battery information from `/proc/acpi/`, and updates the state by polling every few seconds. Previous versions used DBus and HAL, but HAL has been deprecated and is not available anymore on some distros.
+The current implementation reads battery information from `/sys/class/power_supply/`, and updates the state by polling every few seconds.
+
+### Changelog summary:
+
+* Version 1.4.0 reads information from `/sys/class/power_supply/`, which has been added in Linux kernel 2.6.23. However, it uses `power_now` instead of `current_now`, and thus only works on 2.6.30 and newer.
+
+* Version 1.3.0 reads information from `/proc/acpi/` interface (which has been removed from Linux kernel 2.6.39). The old DBus+HAL code was replaced by polling the battery state every few seconds.
+
+* Older versions used DBus and HAL instead of polling the state every few seconds. However, support for HAL has been deprecated and removed from most distros.
 
 ## History
 
@@ -33,7 +41,6 @@ Here is a list of things you can do to help moving _batterymon_ forward:
 
 * Some code cleanup/refactor.
 * Add a COPYING or LICENSE file (see [issue 15 at Google Code][oldissue15]).
-* Add support to `/sys/class/power_supply/*`, since `/proc/acpi/*` has been deprecated and has been removed in newer kernels.
 * Add native GTK/freedesktop theme support (see [issue 16 at Google Code][oldissue15]).
   * But built-in theme support should still be kept.
 * Add back support to DBus, but using newer interfaces. See [battery-status][battery-status] or [batti-gtk][batti] projects for inspiration.
