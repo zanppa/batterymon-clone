@@ -1,3 +1,7 @@
+# XXX: This file is not being used!
+#
+# Maybe someday we add back support for config files.
+
 from __future__ import with_statement
 
 import ConfigParser

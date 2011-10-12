@@ -1,3 +1,7 @@
+# XXX: This file is not being used!
+#
+# It was left here because someday we might add the preferences window back.
+
 import gtk
 from logger import logger_init
 from settings import config
