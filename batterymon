@@ -29,7 +29,7 @@ except:
     pynotify = None
 
 
-VERSION="1.4.0"
+VERSION="1.4.0-beta1"
 AUTHORS=["Matthew Horsell", "Tomas Kramar", "sayamindu", "Denilson Sá"]
 
 
@@ -331,20 +331,20 @@ class Systray(PowerEventListener):
         # Setting the tooltip
         if battery.is_charging:
             self.tray_object.set_tooltip(
-                _(u'On AC (Charging)\nBattery Level: {battery.charge_level}%').format(battery=battery)
-                #_(u'On AC (Charging)\nBattery Level: {charge_level}%\nTime remaining: {remaining_time}').format(battery=battery)
+                _("On AC (Charging)\nBattery Level: {battery.charge_level}%").format(battery=battery)
+                #_("On AC (Charging)\nBattery Level: {charge_level}%\nTime remaining: {remaining_time}").format(battery=battery)
             )
             logger.debug('Charging - charge_level={battery.charge_level}'.format(battery=battery))
 
         elif battery.is_discharging:
             self.tray_object.set_tooltip(
-                _(u'Battery Level: {battery.charge_level}%\nTime remaining: {battery.remaining_time}').format(battery=battery)
+                _("Battery Level: {battery.charge_level}%\nTime remaining: {battery.remaining_time}").format(battery=battery)
             )
             logger.debug('Discharging - charge_level={battery.charge_level} - time={battery.remaining_time}'.format(battery=battery))
 
         else:
             self.tray_object.set_tooltip(
-                _(u'On AC\nBattery Level: {battery.charge_level}%').format(battery=battery)
+                _("On AC\nBattery Level: {battery.charge_level}%").format(battery=battery)
             )
             logger.debug('On AC - charge_level={battery.charge_level}'.format(battery=battery))
 

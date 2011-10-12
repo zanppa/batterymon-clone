@@ -6,7 +6,7 @@ import glob
 from distutils.core import setup
 
 setup(name='batterymon',
-      version="1.3.0",
+      version="1.4.0-beta1",
       description='A simple battery monitor for any desktop',
       author='Denilson Sá',
       author_email='denilsonsa@gmail.com',

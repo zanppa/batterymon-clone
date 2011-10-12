@@ -8,7 +8,7 @@ msgid ""
 msgstr ""
 "Project-Id-Version: PACKAGE VERSION\n"
 "Report-Msgid-Bugs-To: \n"
-"POT-Creation-Date: 2011-07-21 03:32-0300\n"
+"POT-Creation-Date: 2011-10-12 07:41-0300\n"
 "PO-Revision-Date: YEAR-MO-DA HO:MI+ZONE\n"
 "Last-Translator: FULL NAME <EMAIL@ADDRESS>\n"
 "Language-Team: LANGUAGE <LL@li.org>\n"
@@ -17,67 +17,64 @@ msgstr ""
 "Content-Type: text/plain; charset=CHARSET\n"
 "Content-Transfer-Encoding: 8bit\n"
 
-#: ../batterymon:33
+#: ../batterymon:26
 msgid ""
 "There was an error initializing the notification system. Notifications won't "
 "work."
 msgstr ""
 
-#: ../batterymon:35
+#: ../batterymon:28
 msgid ""
 "You do not seem to have python-notify installed. Notifications won't work."
 msgstr ""
 
-#: ../batterymon:350
-#, c-format
+#: ../batterymon:334
 msgid ""
-"On AC (Charging) \n"
-"Battery Level: %s%%"
+"On AC (Charging)\n"
+"Battery Level: {battery.charge_level}%"
 msgstr ""
 
-#: ../batterymon:354
-#, c-format
+#: ../batterymon:341
 msgid ""
-"Battery Level: %s%% \n"
-"Time remaining %s"
+"Battery Level: {battery.charge_level}%\n"
+"Time remaining: {battery.remaining_time}"
 msgstr ""
 
-#: ../batterymon:358
-#, c-format
+#: ../batterymon:347
 msgid ""
-"On AC \n"
-"Battery Level: %s%%"
+"On AC\n"
+"Battery Level: {battery.charge_level}%"
 msgstr ""
 
-#: ../batterymon:435
+#: ../batterymon:405
 msgid "Battery Monitor"
 msgstr ""
 
-#: ../batterymon:528
+#: ../batterymon:489
 msgid "On AC"
 msgstr ""
 
-#: ../batterymon:528
+#: ../batterymon:489
 msgid "You are currently running on AC"
 msgstr ""
 
-#: ../batterymon:530
+#: ../batterymon:491
 msgid "On Battery"
 msgstr ""
 
-#: ../batterymon:530
+#: ../batterymon:491
 msgid "AC adapter unplugged, running on battery"
 msgstr ""
 
-#: ../batterymon:534
+#: ../batterymon:496
 msgid "Low Battery"
 msgstr ""
 
-#: ../batterymon:534 ../batterymon:538
+#: ../batterymon:496 ../batterymon:500
 #, c-format
 msgid "You have approximately <b>%s</b> remaining"
 msgstr ""
 
-#: ../batterymon:538
+#: ../batterymon:500
 msgid "Critical Battery"
 msgstr ""
