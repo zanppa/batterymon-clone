@@ -29,7 +29,7 @@ except:
     pynotify = None
 
 
-VERSION="1.4.0-beta1"
+VERSION="1.4.0-beta2"
 AUTHORS=["Matthew Horsell", "Tomas Kramar", "sayamindu", "Denilson Sá"]
 
 
@@ -39,6 +39,11 @@ def cat(dirname, filename=None):
     You can also pass two strings and they will be joined using os.path.join().
     The returned string is automatically stripped using .strip().
 
+    If the file is not found (or in case of IOError), just return an empty
+    string.
+
+    >>> cat('/file_not_found_or_IOError')
+    ''
     >>> # These 3 function calls behave exactly the same way:
     >>> cat('/proc/version')  # doctest:+ELLIPSIS
     ...
@@ -50,8 +55,27 @@ def cat(dirname, filename=None):
     '''
 
     fullfilename = dirname if filename is None else os.path.join(dirname, filename)
-    with open(fullfilename) as f:
-        return f.read().strip()
+    try:
+        with open(fullfilename) as f:
+            return f.read().strip()
+    except IOError as e:
+        return ''
+
+
+def int_or_zero(s):
+    '''Receives a string and converts to int.
+    Returns zero in case of errors, instead of throwing an exception.
+
+    >>> int_or_zero('')
+    0
+    >>> int_or_zero('42')
+    42
+    '''
+
+    try:
+        return int(s)
+    except ValueError as e:
+        return 0
 
 
 def detect_AcAdapters_and_Batteries():
@@ -169,9 +193,9 @@ class Battery:
         logger.debug("battery.is_discharging: %s" % str(is_discharging))
 
         # "energy_full" should be preferred over "energy_full_design"
-        energy_full = int(cat(self.__dirname, 'energy_full'))
-        energy_now = int(cat(self.__dirname, 'energy_now'))
-        power_now = int(cat(self.__dirname, 'power_now'))
+        energy_full = int_or_zero(cat(self.__dirname, 'energy_full'))
+        energy_now = int_or_zero(cat(self.__dirname, 'energy_now'))
+        power_now = int_or_zero(cat(self.__dirname, 'power_now'))
 
         if energy_full > 0:
             charge_level = 100 * energy_now // energy_full
