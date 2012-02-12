@@ -30,7 +30,7 @@ except:
     pynotify = None
 
 
-VERSION="1.4.0-beta2"
+VERSION="1.4.0"
 AUTHORS=["Matthew Horsell", "Tomas Kramar", "sayamindu", "Denilson Sá"]
 
 
