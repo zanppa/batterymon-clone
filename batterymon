@@ -24,6 +24,7 @@ try:
     import pynotify
     if not pynotify.init("Battery Monitor"):
         print(_("There was an error initializing the notification system. Notifications won't work."))
+    pynotify = None
 except:
     print(_("You do not seem to have python-notify installed. Notifications won't work."))
     pynotify = None
