@@ -1,4 +1,4 @@
-#!/usr/bin/env python2
+#!/usr/bin/python
 # -*- coding: utf-8 -*-
 # vi:ts=4 sw=4 et
 
@@ -193,10 +193,20 @@ class Battery:
         logger.debug("battery.is_charging: %s" % str(is_charging))
         logger.debug("battery.is_discharging: %s" % str(is_discharging))
 
-        # "energy_full" should be preferred over "energy_full_design"
-        energy_full = int_or_zero(cat(self.__dirname, 'energy_full'))
-        energy_now = int_or_zero(cat(self.__dirname, 'energy_now'))
-        power_now = int_or_zero(cat(self.__dirname, 'power_now'))
+        # "(charge|energy)_full" should be preferred over
+        # "(energy|charge)_full_design"
+
+        # naming convention 1: charge_full, charge_now, current_now
+        if os.path.exists(os.path.join(self.__dirname, 'charge_full')):
+            energy_full = int_or_zero(cat(self.__dirname, 'charge_full'))
+            energy_now = int_or_zero(cat(self.__dirname, 'charge_now'))
+            power_now = int_or_zero(cat(self.__dirname, 'current_now'))
+
+        # naming convention 2: energy_full, energy_now, power_now
+        elif os.path.exists(os.path.join(self.__dirname, 'energy_full')):
+            energy_full = int_or_zero(cat(self.__dirname, 'energy_full'))
+            energy_now = int_or_zero(cat(self.__dirname, 'energy_now'))
+            power_now = int_or_zero(cat(self.__dirname, 'power_now'))
 
         if energy_full > 0:
             charge_level = 100 * energy_now // energy_full
