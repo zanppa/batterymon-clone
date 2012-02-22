@@ -197,16 +197,21 @@ class Battery:
         # "(energy|charge)_full_design"
 
         # naming convention 1: charge_full, charge_now, current_now
-        if os.path.exists(os.path.join(self.__dirname, 'charge_full')):
-            energy_full = int_or_zero(cat(self.__dirname, 'charge_full'))
-            energy_now = int_or_zero(cat(self.__dirname, 'charge_now'))
-            power_now = int_or_zero(cat(self.__dirname, 'current_now'))
-
         # naming convention 2: energy_full, energy_now, power_now
-        elif os.path.exists(os.path.join(self.__dirname, 'energy_full')):
-            energy_full = int_or_zero(cat(self.__dirname, 'energy_full'))
-            energy_now = int_or_zero(cat(self.__dirname, 'energy_now'))
-            power_now = int_or_zero(cat(self.__dirname, 'power_now'))
+        energy_full = int_or_zero( \
+                cat(self.__dirname, 'charge_full') or \
+                cat(self.__dirname, 'energy_full') \
+        )
+
+        energy_now = int_or_zero( \
+                cat(self.__dirname, 'charge_now') or \
+                cat(self.__dirname, 'energy_now') \
+        )
+
+        power_now = int_or_zero( \
+                cat(self.__dirname, 'current_now') or \
+                cat(self.__dirname, 'power_now') \
+        )
 
         if energy_full > 0:
             charge_level = 100 * energy_now // energy_full
