@@ -141,7 +141,7 @@ class Battery:
 
         self.__dirname = dirname
 
-        self.remaining_time = "unknown"  ## added this or the program crashes on a full battery
+        self.remaining_time = self.__str_time(-1)
 
     def update(self):
         # Working with /sys/class/power_supply/ battery interface:
@@ -208,7 +208,7 @@ class Battery:
         remaining_seconds = -1
         if power_now > 0:
             if is_charging:
-                # Note: this is inaccurate because the charging time is not linear
+                # Note: this is very inaccurate because the charging time is not linear
                 remaining_seconds = ((energy_full - energy_now) * 60 * 60) // power_now
             elif is_discharging:
                 remaining_seconds = (energy_now * 60 * 60) // power_now
