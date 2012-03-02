@@ -40,7 +40,7 @@ Each one of the authors contributed a little in order to make _batterymon_ a bet
 Here is a list of things you can do to help moving _batterymon_ forward:
 
 * Some code cleanup/refactor.
-* Add a COPYING or LICENSE file (see [issue 15 at Google Code][oldissue15]).
+* ~Add a COPYING or LICENSE file (see [issue 15 at Google Code][oldissue15]).~ DONE
 * Add native GTK/freedesktop theme support (see [issue 16 at Google Code][oldissue15]).
   * But built-in theme support should still be kept.
 * Add back support to DBus, but using newer interfaces. See [battery-status][battery-status] or [batti-gtk][batti] projects for inspiration.
