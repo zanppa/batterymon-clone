@@ -12,9 +12,12 @@ Prompt the user to hibernate/shutdown.
   -h		Show this help message.
   -t SECONDS	Set the dialog timeout to SECONDS (default is 60).
   -S		Shutdown instead of hibernate.
+  -W		Only warn, do not take any action.
 
-For best results, make sure the user this runs as is able to run programs via
-sudo(8), or run this program as root.
+For best results:
+* Make sure the user this runs as is able to run programs via sudo(8), or run
+  this program as root.
+* Install either Xdialog or xmessage and make sure they're in the PATH.
 
 Copyright (C) 2012 Dan Church.
 License GPLv3+: GNU GPL version 3 or later (http://gnu.org/licenses/gpl.html).
@@ -26,13 +29,16 @@ EOF
 
 TIMEOUT=60
 ACTION='h'
-while getopts 't:Sh' flag; do
+while getopts 't:SWh' flag; do
 	case "$flag" in
 		't')
 			TIMEOUT="$OPTARG"
 			;;
 		'S')
 			ACTION='s'
+			;;
+		'W')
+			ACTION='n'
 			;;
 		'h')
 			HELP_MESSAGE 0
@@ -109,11 +115,21 @@ case "$ACTION" in
 		syntax_1='shutting down'
 		syntax_2='Shut down'
 		;;
+	'n')
+		go_ahead=0
+		;;
 esac
 
-message="*** BATTERY LEVEL CRITICAL ***
+message="*** BATTERY LEVEL CRITICAL ***"
+
+if [ "x$ACTION" != 'xn' ]; then
+	message="$message
 You have ${TIMEOUT} seconds before ${syntax_1}.
 ${syntax_2} now?"
+else
+	message="$message
+Powering down is recommended."
+fi
 
 if [ -n "$(type -Pt Xdialog)" ]; then
 	# we have the fancier Xdialog, so use it
@@ -126,18 +142,29 @@ if [ -n "$(type -Pt Xdialog)" ]; then
 	# 1   : cancel
 	# 0   : ok
 
-	Xdialog \
-		--center \
-		--title	'WARNING' \
-		--timeout "$TIMEOUT" \
-		--cancel-label "$syntax_2" \
-		--ok-label 'Stay on' \
-		--no-close \
-		--yesno "$message" 10 45
+	if [ "x$ACTION" != 'xn' ]; then
+		Xdialog \
+			--center \
+			--title	'WARNING' \
+			$([ "$TIMEOUT" -gt 0 ] && echo "--timeout $TIMEOUT") \
+			--cancel-label "$syntax_2" \
+			--ok-label 'Stay on' \
+			--no-close \
+			--yesno "$message" 10 45
 
-	# we can do this because a non-zero exit status indicates
-	# hibernate/shutdown condition
-	go_ahead="$?"
+		# we can do this because a non-zero exit status indicates
+		# hibernate/shutdown condition
+		go_ahead="$?"
+	else
+		# no action (`-W' flag)
+		Xdialog \
+			--center \
+			--title	'WARNING' \
+			$([ "$TIMEOUT" -gt 0 ] && echo "--timeout $TIMEOUT") \
+			--cancel-label "$syntax_2" \
+			--msgbox "$message" 8 45
+	fi
+
 
 elif [ -n "$(type -Pt xmessage)" ]; then
 	# we have the crappier-looking xmessage, but that will work too
@@ -146,14 +173,26 @@ elif [ -n "$(type -Pt xmessage)" ]; then
 	# 0: timed out (or our action button)
 	# 1: closed (or our non-action button)
 	# ^ this means we're going to have to negate the return code
-	! xmessage \
-		-center \
-		-timeout "$TIMEOUT" \
-		-default 'Stay on' \
-		-buttons "Stay on:1,${syntax_2}:0" \
-		"$message"
 
-	go_ahead="$?"
+	if [ "x$ACTION" != 'xn' ]; then
+		! xmessage \
+			-center \
+			$([ "$TIMEOUT" -gt 0 ] && echo "-timeout $TIMEOUT") \
+			-default 'Stay on' \
+			-buttons "Stay on:1,${syntax_2}:0" \
+			"$message"
+
+		go_ahead="$?"
+	else
+		# no action (`-W' flag)
+		xmessage \
+			-center \
+			$([ "$TIMEOUT" -gt 0 ] && echo "-timeout $TIMEOUT") \
+			-default 'OK' \
+			-buttons "OK:0" \
+			"$message"
+
+	fi
 else
 	echo 'No windowed dialog program. Please install Xdialog or xmessage.' >&2
 	# assume we want to shut down anyway, as this script is intended to be
@@ -164,24 +203,14 @@ fi
 ##### perform action
 
 if [ "$go_ahead" -ne 0 ]; then
-	if [ "x$ACTION" == 'xs' ]; then
-		do_shutdown
-	else
-		do_hibernate
-	fi
+	case "$ACTION" in
+		's')
+			do_shutdown
+			;;
+		'h')
+			do_hibernate
+			;;
+		#*)
+		#no action (`-W' switch)
+	esac
 fi
-
-# hibernate!
-#echo 'disk' |sudo tee /sys/power/state >/dev/null
-
-#case "$?" in
-#	0)
-#		echo 'Staying on'
-#		;;
-#	1)
-#		echo 'Hibernating'
-#		;;
-#	*)
-#		echo 'Closed/timed out'
-#		;;
-#esac
