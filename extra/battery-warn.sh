@@ -131,7 +131,7 @@ else
 Powering down is recommended."
 fi
 
-if [ -n "$(type -Pt Xdialog)" ]; then
+if which Xdialog >/dev/null 2>&1; then
 	# we have the fancier Xdialog, so use it
 
 	# unfortunately, there doesn't appear to be a way to update the timer
@@ -166,7 +166,7 @@ if [ -n "$(type -Pt Xdialog)" ]; then
 	fi
 
 
-elif [ -n "$(type -Pt xmessage)" ]; then
+elif which xmessage >/dev/null 2>&1; then
 	# we have the crappier-looking xmessage, but that will work too
 
 	# xmessage exit codes:
