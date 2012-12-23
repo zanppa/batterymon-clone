@@ -2,7 +2,6 @@
 # -*- coding: utf-8 -*-
 # vi:ts=4 sw=4 et
 
-import pygtk
 import gtk
 import glib
 from optparse import OptionParser
@@ -114,42 +113,26 @@ def detect_AcAdapters_and_Batteries():
 
 class AcAdapter:
     def __init__(self, dirname):
-        self.property_modified_handler = None
-
         self._dirname = dirname
-
-        # True = on line; False = off-line
-        self._old_state = True
 
     def update(self):
         # Possible values: 0, 1
         present = (cat(self._dirname, 'online') == '1')
         logger.debug("Adapter is present: %s" % present)
+        return present
 
-        if self._old_state != present:
-            if self.property_modified_handler:
-                self.property_modified_handler(present)
-            else:
-                logger.warn("No AC adapter property modified handler, ignoring status update")
-
-        self._old_state = present
-
-    def __eq__(self, y):
-        if isinstance(y, AcAdapter):
-            return self._dirname == y._dirname
+    def __eq__(self, _object):
+        if isinstance(_object, AcAdapter):
+            return self._dirname == _object._dirname
         return False
 
 class Battery:
     def __init__(self, dirname):
-        self.property_modified_handler = None
-
         self._dirname = dirname
 
-        self.remaining_time = self.__str_time(-1)
-
-    def __eq__(self, y):
-        if isinstance(y, Battery):
-            return self._dirname == y._dirname
+    def __eq__(self, _object):
+        if isinstance(_object, Battery):
+            return self._dirname == _object._dirname
         return False
 
     def update(self):
@@ -195,7 +178,7 @@ class Battery:
             is_discharging = True
         else:
             # "Unknown", "Not charging", "Full"
-            is_charging = True
+            is_charging = False
             is_discharging = False
 
         logger.debug("battery.is_charging: %s" % str(is_charging))
@@ -227,46 +210,7 @@ class Battery:
             charge_level = 0
         logger.debug("battery.charge_level: %s" % str(charge_level))
 
-        # Converting microWh to microWs, and then dividing by microW, result is seconds
-        remaining_seconds = -1
-        if power_now > 0:
-            if is_charging:
-                # Note: this is very inaccurate because the charging time is not linear
-                remaining_seconds = ((energy_full - energy_now) * 60 * 60) // power_now
-            elif is_discharging:
-                remaining_seconds = (energy_now * 60 * 60) // power_now
-        logger.debug("battery.remaining_seconds: %s" % str(remaining_seconds))
-
-        remaining_time = self.__str_time(remaining_seconds)
-        logger.debug("battery.remaining_time: %s" % str(remaining_time))
-
-        if self.property_modified_handler:
-            self.property_modified_handler(BatteryInfo(charge_level, remaining_time, is_charging, is_discharging, present))
-        else:
-            logger.warn("No property modified handler, ignoring battery status update")
-
-    def __str_time(self, seconds):
-        if seconds <= 0:
-            return 'Unknown'
-
-        minutes = seconds // 60
-        hours = minutes // 60
-
-        minutes = minutes % 60
-
-        #FIXME: The strings below need to be i18n-ized properly
-        if hours == 0 and minutes == 0:
-            return "Less than a minute"
-        else:
-            return self.__format_time(hours, "Hour", "Hours") + " " + self.__format_time(minutes, "Minute", "Minutes")
-
-    def __format_time(self, time, singular, plural):
-        if time == 0:
-            return ""
-        elif time == 1:
-            return "1 %s" % singular
-        else:
-            return "%s %s" % (time, plural)
+        return (energy_full, energy_now, power_now)
 
 
 BatteryInfo = namedtuple('BatteryInfo', 'charge_level remaining_time is_charging is_discharging present')
@@ -495,10 +439,15 @@ class PowerManager:
     def __init__(self):
         self.listeners = []
         self.adapters = self.batteries = []
+
+        # True = on line; False = off-line
+        self._ac_old_state = False
+
         self.initialize_ac_ba()
 
     def initialize_ac_ba(self):
-        new_adapters = new_batteries = []
+        new_adapters = []
+        new_batteries = []
         adapters, batteries = detect_AcAdapters_and_Batteries()
 
         for adapter in adapters:
@@ -508,7 +457,6 @@ class PowerManager:
                         new_adapters.append(old_adapter)
                         break
             else:
-                adapter.property_modified_handler = self.__ac_property_modified_handler
                 new_adapters.append(adapter)
 
         for battery in batteries:
@@ -518,7 +466,6 @@ class PowerManager:
                         new_batteries.append(old_battery)
                         break
             else:
-                battery.property_modified_handler = self.__battery_property_modified_handler
                 new_batteries.append(battery)
 
         self.adapters = new_adapters
@@ -536,12 +483,74 @@ class PowerManager:
         for listener in self.listeners:
             listener.battery_property_modified(battery)
 
-    def update(self):
-        for adapter in self.adapters:
-            adapter.update()
+    def __str_time(self, seconds):
+        if seconds <= 0:
+            return 'Unknown'
 
+        minutes = seconds // 60
+        hours = minutes // 60
+
+        minutes = minutes % 60
+
+        #FIXME: The strings below need to be i18n-ized properly
+        if hours == 0 and minutes == 0:
+            return "Less than a minute"
+        else:
+            return self.__format_time(hours, "Hour", "Hours") + " " + self.__format_time(minutes, "Minute", "Minutes")
+
+    def __format_time(self, time, singular, plural):
+        if time == 0:
+            return ""
+        elif time == 1:
+            return "1 %s" % singular
+        else:
+            return "%s %s" % (time, plural)
+
+    def update(self):
+        # reinitialize ac adapter and battery status in order to detect any
+        # new/removed devices
+        self.initialize_ac_ba()
+
+        state_adapter = False
+        state_adapters = []
+        for adapter in self.adapters:
+            state_adapters.append(adapter.update())
+        for state in state_adapters:
+            if state and not state_adapter:
+                state_adapter = state
+
+        if self._ac_old_state != state_adapter:
+            self.__ac_property_modified_handler(state_adapter)
+        else:
+            logger.warn("No AC adapter property modified handler, ignoring status update")
+        self._ac_old_state = state_adapter
+
+        state_full = state_now = state_power = 0
         for battery in self.batteries:
-            battery.update()
+            res = battery.update()
+            state_full += res[0]
+            state_now += res[1]
+            state_power += res[2]
+
+        charge_level = 0
+        if state_full > 0:
+            charge_level = 100 * state_now // state_full
+        logger.debug("Total battery.charge_level: %s" % str(charge_level))
+
+        remaining_seconds = -1
+        if state_now > 0:
+            if state_adapter:
+                # Note: this is very inaccurate because the charging time is not linear
+                remaining_seconds = ((state_full - state_now) * 60 * 60) // state_power
+            else:
+                remaining_seconds = (state_now * 60 * 60) // state_power
+
+        logger.debug("battery.remaining_seconds: %s" % str(remaining_seconds))
+
+        remaining_time = self.__str_time(remaining_seconds)
+        logger.debug("battery.remaining_time: %s" % str(remaining_time))
+
+        self.__battery_property_modified_handler(BatteryInfo(charge_level, remaining_time, state_adapter == True, state_adapter == False, len(self.batteries) > 0))
 
         # Since this is being called on a GTK timer, it needs to return True
         # (if it returns False, the timer stops)
@@ -619,8 +628,6 @@ def main():
 
     pm.update()
     glib.timeout_add_seconds(int(cmdline.polling_interval), pm.update)
-    # reinitialize the number of batteries and adapters
-    glib.timeout_add_seconds(5 * int(cmdline.polling_interval), pm.initialize_ac_ba)
 
     gtk.main()
 
