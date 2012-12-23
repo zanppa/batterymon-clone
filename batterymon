@@ -486,6 +486,10 @@ def parse_args():
 class PowerManager:
     def __init__(self):
         self.listeners = []
+        self.adapters = self.batteries = None
+        self.initialize_ac_ba()
+
+    def initialize_ac_ba(self):
         self.adapters, self.batteries = detect_AcAdapters_and_Batteries()
 
         for adapter in self.adapters:
@@ -493,6 +497,10 @@ class PowerManager:
 
         for battery in self.batteries:
             battery.property_modified_handler = self.__battery_property_modified_handler
+
+        # Since this is being called on a GTK timer, it needs to return True
+        # (if it returns False, the timer stops)
+        return True
 
     def __ac_property_modified_handler(self, present):
         for listener in self.listeners:
@@ -585,6 +593,8 @@ def main():
 
     pm.update()
     glib.timeout_add_seconds(int(cmdline.polling_interval), pm.update)
+    # reinitialize the number of batteries and adapters
+    glib.timeout_add_seconds(5 * int(cmdline.polling_interval), pm.initialize_ac_ba)
 
     gtk.main()
 
