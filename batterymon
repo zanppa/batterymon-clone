@@ -116,32 +116,41 @@ class AcAdapter:
     def __init__(self, dirname):
         self.property_modified_handler = None
 
-        self.__dirname = dirname
+        self._dirname = dirname
 
         # True = on line; False = off-line
-        self.__old_state = True
+        self._old_state = True
 
     def update(self):
         # Possible values: 0, 1
-        present = (cat(self.__dirname, 'online') == '1')
+        present = (cat(self._dirname, 'online') == '1')
         logger.debug("Adapter is present: %s" % present)
 
-        if self.__old_state != present:
+        if self._old_state != present:
             if self.property_modified_handler:
                 self.property_modified_handler(present)
             else:
                 logger.warn("No AC adapter property modified handler, ignoring status update")
 
-        self.__old_state = present
+        self._old_state = present
 
+    def __eq__(self, y):
+        if isinstance(y, AcAdapter):
+            return self._dirname == y._dirname
+        return False
 
 class Battery:
     def __init__(self, dirname):
         self.property_modified_handler = None
 
-        self.__dirname = dirname
+        self._dirname = dirname
 
         self.remaining_time = self.__str_time(-1)
+
+    def __eq__(self, y):
+        if isinstance(y, Battery):
+            return self._dirname == y._dirname
+        return False
 
     def update(self):
         # Working with /sys/class/power_supply/ battery interface:
@@ -150,7 +159,6 @@ class Battery:
         #   0 or 1
         # /status:
         #   "Unknown", "Charging", "Discharging", "Not charging", "Full"
-        #   If the battery was charged during the system boot and never changed
         #   state, then probably it will be reported as "Unknown".
         #   All other states are pretty self-explanatory.
         #   Similar to "charging state:" from /proc/acpi/battery/BAT0/state
@@ -175,10 +183,10 @@ class Battery:
         # http://bugs.debian.org/cgi-bin/bugreport.cgi?bug=532000
 
         # Note: this value is not used anywhere else in the program.
-        present = (cat(self.__dirname, 'present') == '1')
+        present = (cat(self._dirname, 'present') == '1')
         logger.debug("battery.present: %s" % str(present))
 
-        charging_status = cat(self.__dirname, 'status')
+        charging_status = cat(self._dirname, 'status')
         if charging_status == 'Charging':
             is_charging = True
             is_discharging = False
@@ -187,7 +195,7 @@ class Battery:
             is_discharging = True
         else:
             # "Unknown", "Not charging", "Full"
-            is_charging = False
+            is_charging = True
             is_discharging = False
 
         logger.debug("battery.is_charging: %s" % str(is_charging))
@@ -199,18 +207,18 @@ class Battery:
         # naming convention 1: charge_full, charge_now, current_now
         # naming convention 2: energy_full, energy_now, power_now
         energy_full = int_or_zero( \
-                cat(self.__dirname, 'charge_full') or \
-                cat(self.__dirname, 'energy_full') \
+                cat(self._dirname, 'charge_full') or \
+                cat(self._dirname, 'energy_full') \
         )
 
         energy_now = int_or_zero( \
-                cat(self.__dirname, 'charge_now') or \
-                cat(self.__dirname, 'energy_now') \
+                cat(self._dirname, 'charge_now') or \
+                cat(self._dirname, 'energy_now') \
         )
 
         power_now = int_or_zero( \
-                cat(self.__dirname, 'current_now') or \
-                cat(self.__dirname, 'power_now') \
+                cat(self._dirname, 'current_now') or \
+                cat(self._dirname, 'power_now') \
         )
 
         if energy_full > 0:
@@ -486,17 +494,35 @@ def parse_args():
 class PowerManager:
     def __init__(self):
         self.listeners = []
-        self.adapters = self.batteries = None
+        self.adapters = self.batteries = []
         self.initialize_ac_ba()
 
     def initialize_ac_ba(self):
-        self.adapters, self.batteries = detect_AcAdapters_and_Batteries()
+        new_adapters = new_batteries = []
+        adapters, batteries = detect_AcAdapters_and_Batteries()
 
-        for adapter in self.adapters:
-            adapter.property_modified_handler = self.__ac_property_modified_handler
+        for adapter in adapters:
+            if adapter in self.adapters:
+                for old_adapter in self.adapters:
+                    if adapter == old_adapter:
+                        new_adapters.append(old_adapter)
+                        break
+            else:
+                adapter.property_modified_handler = self.__ac_property_modified_handler
+                new_adapters.append(adapter)
 
-        for battery in self.batteries:
-            battery.property_modified_handler = self.__battery_property_modified_handler
+        for battery in batteries:
+            if battery in self.batteries:
+                for old_battery in self.batteries:
+                    if battery == old_battery:
+                        new_batteries.append(old_battery)
+                        break
+            else:
+                battery.property_modified_handler = self.__battery_property_modified_handler
+                new_batteries.append(battery)
+
+        self.adapters = new_adapters
+        self.batteries = new_batteries
 
         # Since this is being called on a GTK timer, it needs to return True
         # (if it returns False, the timer stops)
