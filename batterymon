@@ -539,7 +539,9 @@ class PowerManager:
 
         remaining_seconds = -1
         if state_now > 0:
-            if state_adapter:
+            if not state_power:
+                remaining_seconds = 0
+            elif state_adapter:
                 # Note: this is very inaccurate because the charging time is not linear
                 remaining_seconds = ((state_full - state_now) * 60 * 60) // state_power
             else:
@@ -547,7 +549,11 @@ class PowerManager:
 
         logger.debug("battery.remaining_seconds: %s" % str(remaining_seconds))
 
-        remaining_time = self.__str_time(remaining_seconds)
+        if remaining_seconds:
+            remaining_time = self.__str_time(remaining_seconds)
+        else:
+            remaining_time = "Unable to get power information"
+
         logger.debug("battery.remaining_time: %s" % str(remaining_time))
 
         self.__battery_property_modified_handler(BatteryInfo(charge_level, remaining_time, state_adapter == True, state_adapter == False, len(self.batteries) > 0))
