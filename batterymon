@@ -29,8 +29,9 @@ except:
     pynotify = None
 
 
-VERSION="1.4.0"
-AUTHORS=["Matthew Horsell", "Tomas Kramar", "sayamindu", "Denilson Sá"]
+VERSION="1.4.1"
+AUTHORS=["Matthew Horsell", "Tomas Kramar", "sayamindu", "Denilson Sá", "Jarek Sedlacek"]
+
 
 
 def cat(dirname, filename=None):

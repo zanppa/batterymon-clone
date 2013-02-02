@@ -57,7 +57,7 @@ class clean_with_i18n(clean):
                 pass
 
 setup(name='batterymon',
-      version="1.4.0",
+      version="1.4.1",
       description='A simple battery monitor for any desktop',
       author='Denilson Sá',
       author_email='denilsonsa@gmail.com',
@@ -70,8 +70,8 @@ setup(name='batterymon',
           ('share/batterymon/icons/24x24_narrow', glob.glob('icons/24x24_narrow/*.png')),
           ('share/batterymon/icons/24x24_wide', glob.glob('icons/24x24_wide/*.png')),
           ('share/batterymon/icons/default', glob.glob('icons/default/*.png')),
-          ('share/batterymon/icons/gnome', glob.glob('icons/gnome/*.png')), 
-      ], 
+          ('share/batterymon/icons/gnome', glob.glob('icons/gnome/*.png')),
+      ],
       cmdclass = {
 	      'build': build_with_i18n,
 	      'install_data': install_data_with_i18n,

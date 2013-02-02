@@ -2,7 +2,7 @@
 
 Summary: Battery level indicator for the GNOME panel
 Name:    batterymon
-Version: 1.4.0
+Version: 1.4.1
 Release: 1%{?dist}
 License: LGPLv2+
 Group:   Applications/System
@@ -17,8 +17,8 @@ BuildRequires: python-distutils-extra
 BuildArch: noarch
 
 %description
-This package contains a simple battery level indicator applet for GNOME. 
-It can be useful for scenarios which do not have GNOME Power Manager installed 
+This package contains a simple battery level indicator applet for GNOME.
+It can be useful for scenarios which do not have GNOME Power Manager installed
 for some reason.
 
 %prep
