@@ -522,8 +522,6 @@ class PowerManager:
 
         if self._ac_old_state != state_adapter:
             self.__ac_property_modified_handler(state_adapter)
-        else:
-            logger.warn("No AC adapter property modified handler, ignoring status update")
         self._ac_old_state = state_adapter
 
         state_full = state_now = state_power = 0
