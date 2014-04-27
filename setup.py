@@ -57,7 +57,7 @@ class clean_with_i18n(clean):
                 pass
 
 setup(name='batterymon',
-      version="1.4.1",
+      version="1.4.2",
       description='A simple battery monitor for any desktop',
       author='Denilson Sá',
       author_email='denilsonsa@gmail.com',

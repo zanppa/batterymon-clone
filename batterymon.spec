@@ -2,7 +2,7 @@
 
 Summary: Battery level indicator for the GNOME panel
 Name:    batterymon
-Version: 1.4.1
+Version: 1.4.2
 Release: 1%{?dist}
 License: LGPLv2+
 Group:   Applications/System

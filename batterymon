@@ -29,7 +29,7 @@ except:
     pynotify = None
 
 
-VERSION="1.4.1"
+VERSION="1.4.2"
 AUTHORS=["Matthew Horsell", "Tomas Kramar", "sayamindu", "Denilson Sá", "Jarek Sedlacek"]
 
 
