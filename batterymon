@@ -602,7 +602,7 @@ class CommandRunner(PowerEventListener):
         self.command = command
 
     def battery_property_modified(self, battery):
-        if int(battery.charge_level) <= int(self.power_level) and self.command:
+        if int(battery.charge_level) <= int(self.power_level) and self.command and not battery.is_charging:
             logger.debug("Running command '%s'" % self.command)
             os.system(self.command)
 
