@@ -582,9 +582,9 @@ class PowerManager:
                 remaining_seconds = 0
             elif is_charging:
                 # Note: this is very inaccurate because the charging time is not linear
-                remaining_seconds = ((state_full - state_now) * 60 * 60) // state_power
+                remaining_seconds = ((state_full - state_now) * 60 * 60) // abs(state_power)
             else:
-                remaining_seconds = (state_now * 60 * 60) // state_power
+                remaining_seconds = (state_now * 60 * 60) // abs(state_power)
 
         logger.debug("battery.remaining_seconds: %s" % str(remaining_seconds))
 
