@@ -17,6 +17,8 @@ import gettext
 # Global preferences
 # TODO: move to one of the above files?
 use_charge = False		# Force usage of charge instead of energy
+total_batt = True		# Show combined (total) battery
+all_batts = False		# Show all individual batteries
 
 _ = lambda msg: gettext.dgettext('batterymon', msg)
 logger = logging.getLogger("batterymon")
@@ -304,7 +306,8 @@ class PowerEventListener:
 
 
 class Systray(PowerEventListener):
-    def __init__(self, theme):
+    def __init__(self, name, theme):
+        self.name = name
         self.theme = theme
         self.tray_object= gtk.StatusIcon()
         self.tray_object.set_visible(False)
@@ -603,7 +606,8 @@ class PowerManager:
 
 
 class Notificator(PowerEventListener):
-    def __init__(self, theme, low_level=-1, critical_level=-1):
+    def __init__(self, name, theme, low_level=-1, critical_level=-1):
+        self.name = name
         self.n = NotificationHelper(theme)
         self.low_level = low_level
         self.notified = False
@@ -641,7 +645,8 @@ class Notificator(PowerEventListener):
 
 
 class CommandRunner(PowerEventListener):
-    def __init__(self, power_level, command):
+    def __init__(self, name, power_level, command):
+        self.name = name
         self.power_level = power_level
         self.command = command
 
@@ -669,9 +674,9 @@ def main():
 
     theme = Theme(cmdline.theme)
 
-    systray = Systray(theme)
-    notificator = Notificator(theme, int(cmdline.notification_level), int(cmdline.critical_level))
-    executor = CommandRunner(int(cmdline.critical_level), cmdline.critical_command)
+    systray = Systray('Total', theme)
+    notificator = Notificator('Total', theme, int(cmdline.notification_level), int(cmdline.critical_level))
+    executor = CommandRunner('Total', int(cmdline.critical_level), cmdline.critical_command)
 
     pm = PowerManager(cmdline.blacklist, cmdline.whitelist)
     pm.listeners.append(notificator)
