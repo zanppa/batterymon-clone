@@ -92,8 +92,10 @@ def detect_AcAdapters_and_Batteries(blacklist=None, whitelist=None):
     basepath = '/sys/class/power_supply'
     for name in os.listdir(basepath):
         if blacklist is not None and name in blacklist:
+            logger.debug("Battery %s in blacklist" % name)
             continue
         if whitelist is not None and name not in whitelist:
+            logger.debug("Battery %s not in whitelist" % name)
             continue
 
         # dirname is '/sys/class/power_supply/BAT0'
