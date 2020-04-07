@@ -332,7 +332,15 @@ class Systray(PowerEventListener):
 
     def battery_property_modified(self, battery):
         # Setting the tooltip
-        if battery.is_charging:
+        if not battery.present:
+            if battery.is_charging:
+                self.tray_object.set_tooltip("On AC - No batteries present")
+                logger.debug('On AC - No batteries present')
+            else:
+                self.tray_object.set_tooltip("No batteries present")
+                logger.debug('No batteries present')
+
+        elif battery.is_charging:
             self.tray_object.set_tooltip(
                 _("Charging\nBattery Level: {battery.charge_level}%\nTime remaining: {battery.remaining_time}").format(battery=battery)
                 #_("On AC (Charging)\nBattery Level: {charge_level}%\nTime remaining: {remaining_time}").format(battery=battery)
@@ -564,7 +572,7 @@ class PowerManager:
         if state_now > 0:
             if not state_power:
                 remaining_seconds = 0
-            elif state_adapter or is_charging:
+            elif is_charging:
                 # Note: this is very inaccurate because the charging time is not linear
                 remaining_seconds = ((state_full - state_now) * 60 * 60) // state_power
             else:
@@ -603,6 +611,10 @@ class Notificator(PowerEventListener):
             self.n.notify(_("On Battery"), _("AC adapter unplugged, running on battery"),"full")
 
     def battery_property_modified(self, battery):
+        # Bail out if there is no batteries detected
+        if not battery.present:
+            return
+
         # TODO: use the appropriate icon, instead of just the "full" versions
         if battery.charge_level <= self.low_level and not self.notified:
             self.n.notify(_("Low Battery"), _("You have approximately <b>%s</b> remaining") % battery.remaining_time,"empty")
