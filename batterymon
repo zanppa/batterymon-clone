@@ -14,6 +14,10 @@ import gettext
 #from preferences import prefs
 #from settings import config
 
+# Global preferences
+# TODO: move to one of the above files?
+use_charge = False		# Force usage of charge instead of energy
+
 _ = lambda msg: gettext.dgettext('batterymon', msg)
 logger = logging.getLogger("batterymon")
 
@@ -102,7 +106,7 @@ def detect_AcAdapters_and_Batteries(blacklist=None, whitelist=None):
         dirname = os.path.join(basepath, name)
 
         try:
-            devtype = cat(os.path.join(dirname, 'type'))
+            devtype = cat(dirname, 'type')
 
             if devtype == 'Mains':
                 ac_adapters.append(AcAdapter(dirname))
@@ -176,6 +180,8 @@ class Battery:
         # http://git.kernel.org/?p=linux/kernel/git/torvalds/linux-2.6.git;a=commit;h=7faa144a518c456e2057918f030f50100144ccc6
         # http://bugs.debian.org/cgi-bin/bugreport.cgi?bug=532000
 
+        global use_charge
+
         present = (cat(self._dirname, 'present') == '1')
         logger.debug("battery.present: %s" % str(present))
 
@@ -200,11 +206,12 @@ class Battery:
 
             # naming convention 1: charge_full, charge_now, current_now
             # naming convention 2: energy_full, energy_now, power_now
-            charge_full = int_or_zero(cat(self._dirname, 'energy_full'))
-            charge_now = int_or_zero(cat(self._dirname, 'energy_now'))
-            current_now = int_or_zero(cat(self._dirname, 'power_now'))
+            if not use_charge:
+                charge_full = int_or_zero(cat(self._dirname, 'energy_full'))
+                charge_now = int_or_zero(cat(self._dirname, 'energy_now'))
+                current_now = int_or_zero(cat(self._dirname, 'power_now'))
 
-            if not (charge_full and charge_now):
+            if use_charge or not (charge_full and charge_now):
                 charge_full = int_or_zero(cat(self._dirname, 'charge_full'))
                 charge_now = int_or_zero(cat(self._dirname, 'charge_now'))
                 current_now = int_or_zero(cat(self._dirname, 'current_now'))
@@ -449,6 +456,7 @@ def parse_args():
     parser.add_option("-d", "--debug"      , action="store_true", help="run in debug mode", dest="debug", default=False)
     parser.add_option("-w", "--whitelist"  , action="append", help="whitelist (allow) a device", dest="whitelist")
     parser.add_option("-b", "--blacklist"  , action="append", help="blacklist (block) a device", dest="blacklist")
+    parser.add_option("--use-charge"  , action="store_true", help="force usage of charge instead of energy", dest="use_charge")
     (options, args) = parser.parse_args()
 
     return options
@@ -644,11 +652,14 @@ class CommandRunner(PowerEventListener):
 
 
 def main():
+    global use_charge
+
     logging.basicConfig(
         level=logging.INFO,
         format='%(asctime)s %(filename)s[%(lineno)d]: %(levelname)s %(message)s')
 
     cmdline = parse_args()
+    use_charge = cmdline.use_charge
 
     if cmdline.list_themes:
         Theme.list_all_themes()
