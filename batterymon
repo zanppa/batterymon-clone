@@ -114,7 +114,7 @@ def detect_AcAdapters_and_Batteries(blacklist=None, whitelist=None):
 
     n_adapters = len(ac_adapters)
     n_batteries = len(batteries)
-    logger.debug('Found {0} AC adapter{1} and {2} batter{3}'.format(n_adapters, 's' if n_adapters > 1 else '', n_batteries, 'ies' if n_adapters > 1 else 'y'))
+    logger.debug('Found {0} AC adapter{1} and {2} batter{3}'.format(n_adapters, '' if n_adapters == 1 else 's', n_batteries, 'y' if n_adapters == 1 else 'ies'))
 
     return ac_adapters, batteries
 
@@ -133,6 +133,7 @@ class AcAdapter:
         if isinstance(_object, AcAdapter):
             return self._dirname == _object._dirname
         return False
+
 
 class Battery:
     def __init__(self, dirname):
@@ -173,52 +174,52 @@ class Battery:
         # http://git.kernel.org/?p=linux/kernel/git/torvalds/linux-2.6.git;a=commit;h=7faa144a518c456e2057918f030f50100144ccc6
         # http://bugs.debian.org/cgi-bin/bugreport.cgi?bug=532000
 
-        # Note: this value is not used anywhere else in the program.
         present = (cat(self._dirname, 'present') == '1')
         logger.debug("battery.present: %s" % str(present))
 
-        charging_status = cat(self._dirname, 'status')
-        if charging_status == 'Charging':
-            is_charging = True
-            is_discharging = False
-        elif charging_status == 'Discharging':
-            is_charging = False
-            is_discharging = True
-        else:
-            # "Unknown", "Not charging", "Full"
-            is_charging = False
-            is_discharging = False
+        if present: 	# If battery is missing, skip this
+            charging_status = cat(self._dirname, 'status')
+            if charging_status == 'Charging':
+                is_charging = True
+                is_discharging = False
+            elif charging_status == 'Discharging':
+                is_charging = False
+                is_discharging = True
+            else:
+                # "Unknown", "Not charging", "Full"
+                is_charging = False
+                is_discharging = False
 
-        logger.debug("battery.is_charging: %s" % str(is_charging))
-        logger.debug("battery.is_discharging: %s" % str(is_discharging))
+            logger.debug("battery.is_charging: %s" % str(is_charging))
+            logger.debug("battery.is_discharging: %s" % str(is_discharging))
 
-        # "(charge|energy)_full" should be preferred over
-        # "(energy|charge)_full_design"
+            # "(charge|energy)_full" should be preferred over
+            # "(energy|charge)_full_design"
 
-        # naming convention 1: charge_full, charge_now, current_now
-        # naming convention 2: energy_full, energy_now, power_now
-        energy_full = int_or_zero( \
-                cat(self._dirname, 'charge_full') or \
-                cat(self._dirname, 'energy_full') \
-        )
+            # naming convention 1: charge_full, charge_now, current_now
+            # naming convention 2: energy_full, energy_now, power_now
+            charge_full = int_or_zero(cat(self._dirname, 'energy_full'))
+            charge_now = int_or_zero(cat(self._dirname, 'energy_now'))
+            current_now = int_or_zero(cat(self._dirname, 'power_now'))
 
-        energy_now = int_or_zero( \
-                cat(self._dirname, 'charge_now') or \
-                cat(self._dirname, 'energy_now') \
-        )
+            if not (charge_full and charge_now):
+                charge_full = int_or_zero(cat(self._dirname, 'charge_full'))
+                charge_now = int_or_zero(cat(self._dirname, 'charge_now'))
+                current_now = int_or_zero(cat(self._dirname, 'current_now'))
 
-        power_now = int_or_zero( \
-                cat(self._dirname, 'current_now') or \
-                cat(self._dirname, 'power_now') \
-        )
+            if not (charge_full and charge_now):
+                charge_full = 0
+                charge_now = 0
+                current_now = 0
 
-        if energy_full > 0:
-            charge_level = 100 * energy_now // energy_full
-        else:
-            charge_level = 0
-        logger.debug("battery.charge_level: %s" % str(charge_level))
+            if charge_full > 0:
+                charge_level = 100 * charge_now // charge_full
+            else:
+                charge_level = 0
 
-        return (energy_full, energy_now, power_now)
+            return (present, charge_full, charge_now, current_now)
+
+        return (0, 0, 0, 0)
 
 
 BatteryInfo = namedtuple('BatteryInfo', 'charge_level remaining_time is_charging is_discharging present')
@@ -331,7 +332,7 @@ class Systray(PowerEventListener):
         # Setting the tooltip
         if battery.is_charging:
             self.tray_object.set_tooltip(
-                _("On AC (Charging)\nBattery Level: {battery.charge_level}%").format(battery=battery)
+                _("Charging\nBattery Level: {battery.charge_level}%\nTime remaining: {battery.remaining_time}").format(battery=battery)
                 #_("On AC (Charging)\nBattery Level: {charge_level}%\nTime remaining: {remaining_time}").format(battery=battery)
             )
             logger.debug('Charging - charge_level={battery.charge_level}'.format(battery=battery))
@@ -344,13 +345,11 @@ class Systray(PowerEventListener):
 
         else:
             self.tray_object.set_tooltip(
-                _("On AC\nBattery Level: {battery.charge_level}%").format(battery=battery)
+                _("Battery Level: {battery.charge_level}%").format(battery=battery)
             )
-            logger.debug('On AC - charge_level={battery.charge_level}'.format(battery=battery))
+            logger.debug('Charge_level={battery.charge_level}'.format(battery=battery))
 
         # Some helper variables
-        on_ac = battery.is_charging or (not battery.is_discharging)
-
         levels_and_icons = [
             (96, 'full'),
             (80, '5'),
@@ -367,7 +366,7 @@ class Systray(PowerEventListener):
                 continue
             else:
                 # Found the most appropriate icon!
-                if on_ac:
+                if battery.is_charging:
                     icon_name = 'charging_' + icon_name
                 self.set_icon(icon_name)
 
@@ -524,6 +523,7 @@ class PowerManager:
         # new/removed devices
         self.initialize_ac_ba()
 
+        # Check whether any AC adapters are connected
         state_adapter = False
         state_adapters = []
         for adapter in self.adapters:
@@ -536,23 +536,33 @@ class PowerManager:
             self.__ac_property_modified_handler(state_adapter)
         self._ac_old_state = state_adapter
 
+        # Check combined battery status
+        batteries_present = 0
         state_full = state_now = state_power = 0
         for battery in self.batteries:
             res = battery.update()
-            state_full += res[0]
-            state_now += res[1]
-            state_power += res[2]
+            if res[0]: # Battery must be present for this calculation
+                batteries_present += 1
+                state_full += res[1]
+                state_now += res[2]
+                state_power += res[3]
 
         charge_level = 0
         if state_full > 0:
             charge_level = 100 * state_now // state_full
         logger.debug("Total battery.charge_level: %s" % str(charge_level))
 
+        # Negative (total) current/power indicates discharging
+        is_discharging = state_power < 0
+
+        # Charging status only if battery/ies is not discharging
+        is_charging = ((state_power > 0) or state_adapter) and not is_discharging
+
         remaining_seconds = -1
         if state_now > 0:
             if not state_power:
                 remaining_seconds = 0
-            elif state_adapter:
+            elif state_adapter or is_charging:
                 # Note: this is very inaccurate because the charging time is not linear
                 remaining_seconds = ((state_full - state_now) * 60 * 60) // state_power
             else:
@@ -567,7 +577,7 @@ class PowerManager:
 
         logger.debug("battery.remaining_time: %s" % str(remaining_time))
 
-        self.__battery_property_modified_handler(BatteryInfo(charge_level, remaining_time, state_adapter == True, state_adapter == False, len(self.batteries) > 0))
+        self.__battery_property_modified_handler(BatteryInfo(charge_level, remaining_time, is_charging, is_discharging, batteries_present > 0))
 
         # Since this is being called on a GTK timer, it needs to return True
         # (if it returns False, the timer stops)
