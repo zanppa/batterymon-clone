@@ -29,7 +29,7 @@ except:
     pynotify = None
 
 
-VERSION="1.4.2"
+VERSION="1.4.3"
 AUTHORS=["Matthew Horsell", "Tomas Kramar", "sayamindu", "Denilson Sá", "Jarek Sedlacek"]
 
 
@@ -79,7 +79,7 @@ def int_or_zero(s):
         return 0
 
 
-def detect_AcAdapters_and_Batteries():
+def detect_AcAdapters_and_Batteries(blacklist=None, whitelist=None):
     '''Detects both AC Adapters and Batteries, using the "new"
     /sys/class/power_supply/* interface.
 
@@ -91,6 +91,11 @@ def detect_AcAdapters_and_Batteries():
 
     basepath = '/sys/class/power_supply'
     for name in os.listdir(basepath):
+        if blacklist is not None and name in blacklist:
+            continue
+        if whitelist is not None and name not in whitelist:
+            continue
+
         # dirname is '/sys/class/power_supply/BAT0'
         dirname = os.path.join(basepath, name)
 
@@ -107,7 +112,9 @@ def detect_AcAdapters_and_Batteries():
             # I'm not using logger.exception() because this is not an error.
             logger.debug('Exception while detecting "{0}": {1}'.format(dirname, e))
 
-    logger.debug('Found {0} AC adapter(s) and {1} battery(ies)'.format(len(ac_adapters), len(batteries)))
+    n_adapters = len(ac_adapters)
+    n_batteries = len(batteries)
+    logger.debug('Found {0} AC adapter{1} and {2} batter{3}'.format(n_adapters, 's' if n_adapters > 1 else '', n_batteries, 'ies' if n_adapters > 1 else 'y'))
 
     return ac_adapters, batteries
 
@@ -430,26 +437,31 @@ def parse_args():
     parser.add_option("-i", "--interval"   , action="store", help="polling interval (in seconds)" , dest="polling_interval", default="10")
     parser.add_option("-t", "--theme"      , action="store", help="set icon theme", dest="theme", default="default")
     parser.add_option("-l", "--list-themes", action="store_true", help="list all avalable themes", dest="list_themes", default=False)
-    parser.add_option("-d", "--debug"      , action="store_true", help="run in debug mode" , dest="debug", default=False)
+    parser.add_option("-d", "--debug"      , action="store_true", help="run in debug mode", dest="debug", default=False)
+    parser.add_option("-w", "--whitelist"  , action="append", help="whitelist (allow) a device", dest="whitelist")
+    parser.add_option("-b", "--blacklist"  , action="append", help="blacklist (block) a device", dest="blacklist")
     (options, args) = parser.parse_args()
 
     return options
 
 
 class PowerManager:
-    def __init__(self):
+    def __init__(self, blacklist=None, whitelist=None):
         self.listeners = []
         self.adapters = self.batteries = []
 
         # True = on line; False = off-line
         self._ac_old_state = False
 
+        self.blacklist = blacklist
+        self.whitelist = whitelist
+
         self.initialize_ac_ba()
 
     def initialize_ac_ba(self):
         new_adapters = []
         new_batteries = []
-        adapters, batteries = detect_AcAdapters_and_Batteries()
+        adapters, batteries = detect_AcAdapters_and_Batteries(self.blacklist, self.whitelist)
 
         for adapter in adapters:
             if adapter in self.adapters:
@@ -626,7 +638,7 @@ def main():
     notificator = Notificator(theme, int(cmdline.notification_level), int(cmdline.critical_level))
     executor = CommandRunner(int(cmdline.critical_level), cmdline.critical_command)
 
-    pm = PowerManager()
+    pm = PowerManager(cmdline.blacklist, cmdline.whitelist)
     pm.listeners.append(notificator)
     pm.listeners.append(systray)
     pm.listeners.append(executor)
