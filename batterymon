@@ -218,7 +218,7 @@ class Battery:
         if self.present or (not use_present): 	# If battery is missing, skip this
             self.present = True
             self.status = cat(self._dirname, 'status')
-            if self.status == 'Charging' or self.status == 'Full':	# Seems like full also indicates on AC
+            if self.status == 'Charging':
                 self.is_charging = True
                 self.is_discharging = False
             elif self.status == 'Discharging':
