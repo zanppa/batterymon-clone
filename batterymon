@@ -114,7 +114,7 @@ def detect_AcAdapters_and_Batteries(blacklist=None, whitelist=None):
             devtype = cat(dirname, 'type')
 
             if devtype == 'Mains':
-                ac_adapters.append(AcAdapter(dirname))
+                ac_adapters.append(AcAdapter(name, dirname))
             elif devtype == 'Battery':
                 batteries.append(Battery(name, dirname))
             else:
@@ -131,8 +131,12 @@ def detect_AcAdapters_and_Batteries(blacklist=None, whitelist=None):
 
 
 class AcAdapter:
-    def __init__(self, dirname):
+    def __init__(self, name, dirname):
+        self.name = name
         self._dirname = dirname
+
+    def create(self):
+        pass
 
     def update(self):
         # Possible values: 0, 1
@@ -151,9 +155,6 @@ BatteryInfo = namedtuple('BatteryInfo', 'charge_level remaining_time is_charging
 
 class Battery:
     def __init__(self, name, dirname):
-        global all_batts
-        global theme
-
         self.name = name
         self._dirname = dirname
         self.systray = None
@@ -167,9 +168,14 @@ class Battery:
         self.current_now = 0
         self.charge_level = 0
 
+
+    def create(self):
+        global all_batts
+        global theme
+
         # If all batteries should have icon
-        if all_batts:
-            self.systray = Systray(name, theme)
+        if all_batts and self.systray is None:
+            self.systray = Systray(self.name, theme)
 
     def __eq__(self, _object):
         if isinstance(_object, Battery):
@@ -519,11 +525,21 @@ def parse_args():
 
     return options
 
+# Simple custom list implementation that correctly compares
+# Batter nad AcAdapter classes (by their name using the __eq__ operator)
+class DeviceList(list):
+    def __contains__(self, item):
+        for item2 in self:
+            if item2 == item:
+                return True
+        return False
+
 
 class PowerManager:
     def __init__(self, blacklist=None, whitelist=None):
         self.listeners = []
-        self.adapters = self.batteries = []
+        self.adapters = DeviceList()
+        self.batteries = DeviceList()
 
         # True = on line; False = off-line
         self._ac_old_state = False
@@ -538,30 +554,36 @@ class PowerManager:
         global all_batts
         global theme
 
-        new_adapters = []
-        new_batteries = []
-        adapters, batteries = detect_AcAdapters_and_Batteries(self.blacklist, self.whitelist)
+        new_adapters, new_batteries = detect_AcAdapters_and_Batteries(self.blacklist, self.whitelist)
 
-        for adapter in adapters:
-            if adapter in self.adapters:
-                for old_adapter in self.adapters:
-                    if adapter == old_adapter:
-                        new_adapters.append(old_adapter)
-                        break
+        # Remove non-existent adapters
+        i = 0
+        while i < len(self.adapters):
+            if not self.adapters[i] in new_adapters:
+                print('Remove adapter {}'.format(self.adapters.pop(i).name))
             else:
-                new_adapters.append(adapter)
+                i += 1
+        # Add new adapters
+        for adapter in new_adapters:
+            if not adapter in self.adapters:
+                print('Add adapter {}'.format(adapter.name))
+                adapter.create()
+                self.adapters.append(adapter)
 
-        for battery in batteries:
-            if battery in self.batteries:
-                for old_battery in self.batteries:
-                    if battery == old_battery:
-                        new_batteries.append(old_battery)
-                        break
+        # Remove non-existent batteries
+        i = 0
+        while i < len(self.batteries):
+            if not self.batteries[i] in new_batteries:
+                print('Remove battery {}'.format(self.batteries.pop(i).name))
             else:
-                new_batteries.append(battery)
+                i += 1
+        # Add new batteries
+        for battery in new_batteries:
+            if not battery in self.batteries:
+                print('Add battery {}'.format(battery.name))
+                battery.create()
+                self.batteries.append(battery)
 
-        self.adapters = new_adapters
-        self.batteries = new_batteries
 
     def __ac_property_modified_handler(self, present):
         for listener in self.listeners:
