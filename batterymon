@@ -18,6 +18,7 @@ import gettext
 # TODO: move to one of the above files?
 use_charge = False		# Force usage of charge instead of energy
 use_capacity = False	# Force usage of capacity instead of calculations
+use_present = True		# Use the /present to check if the battery is present or not
 total_batt = True		# Show combined (total) battery
 all_batts = False		# Show all individual batteries
 
@@ -185,11 +186,12 @@ class Battery:
 
         global use_charge
         global use_capacity
+        global use_present
 
         present = (cat(self._dirname, 'present') == '1')
         logger.debug("battery.present: %s" % str(present))
 
-        if present: 	# If battery is missing, skip this
+        if present or (not use_present): 	# If battery is missing, skip this
             charging_status = cat(self._dirname, 'status')
             if charging_status == 'Charging':
                 is_charging = True
@@ -197,6 +199,10 @@ class Battery:
             elif charging_status == 'Discharging':
                 is_charging = False
                 is_discharging = True
+            elif charging_status == '':		# IOError --> mmissing battery?
+                is_charging = False
+                is_discharging = False
+                present = False
             else:
                 # "Unknown", "Not charging", "Full"
                 is_charging = False
@@ -210,21 +216,26 @@ class Battery:
 
             # naming convention 1: charge_full, charge_now, current_now
             # naming convention 2: energy_full, energy_now, power_now
-            if not use_charge and not use_capacity:
+            if not present: 	# Error in this branch
+                charge_full = 0
+                charge_now = 0
+                current_now = 0
+            elif use_capacity: # Use capacity only if specially requested
+                charge_full = 100
+                charge_now = int_or_zero(cat(self._dirname, 'capacity'))
+                current_now = 0
+            elif not use_charge: # By default use energy
                 charge_full = int_or_zero(cat(self._dirname, 'energy_full'))
                 charge_now = int_or_zero(cat(self._dirname, 'energy_now'))
                 current_now = int_or_zero(cat(self._dirname, 'power_now'))
 
-            if not use_capacity and (use_charge or not (charge_full and charge_now)):
+            # Use charge as last option
+            if present and (not use_capacity) and (use_charge or not (charge_full and charge_now)):
                 charge_full = int_or_zero(cat(self._dirname, 'charge_full'))
                 charge_now = int_or_zero(cat(self._dirname, 'charge_now'))
                 current_now = int_or_zero(cat(self._dirname, 'current_now'))
 
-            if use_capacity:
-                charge_full = 100
-                charge_now = int_or_zero(cat(self._dirname, 'capacity'))
-                current_now = 0
-
+            # If didn't get some variables, put all as zero
             if not (charge_full and charge_now):
                 charge_full = 0
                 charge_now = 0
@@ -466,8 +477,9 @@ def parse_args():
     parser.add_option("-d", "--debug"      , action="store_true", help="run in debug mode", dest="debug", default=False)
     parser.add_option("-w", "--whitelist"  , action="append", help="whitelist (allow) a device", dest="whitelist")
     parser.add_option("-b", "--blacklist"  , action="append", help="blacklist (block) a device", dest="blacklist")
-    parser.add_option("--use-charge"  , action="store_true", help="force usage of charge instead of energy", dest="use_charge")
-    parser.add_option("--use-capacity"  , action="store_true", help="force usage of reported capacity", dest="use_capacity")
+    parser.add_option("--use-charge"  , action="store_true", help="force usage of charge instead of energy", dest="use_charge", default=False)
+    parser.add_option("--use-capacity"  , action="store_true", help="force usage of reported capacity", dest="use_capacity", default=False)
+    parser.add_option("--no-present"  , action="store_false", help="do not check battery presence", dest="use_present", default=True)
     (options, args) = parser.parse_args()
 
     return options
@@ -667,6 +679,7 @@ class CommandRunner(PowerEventListener):
 def main():
     global use_charge
     global use_capacity
+    global use_present
 
     logging.basicConfig(
         level=logging.INFO,
@@ -675,6 +688,7 @@ def main():
     cmdline = parse_args()
     use_charge = cmdline.use_charge
     use_capacity = cmdline.use_capacity
+    use_present = cmdline.use_present
 
     if cmdline.list_themes:
         Theme.list_all_themes()
