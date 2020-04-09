@@ -284,7 +284,11 @@ class Battery:
 
         if self.systray and new_state != old_state:
             # TODO: Needs remaining time
+            self.systray.show(1) # TODO: Use correct mode?
             self.systray.battery_property_modified(BatteryInfo(self.name, self.charge_level, 'N/A', self.is_charging, self.is_discharging, self.present))
+
+        if self.systray and not self.present:
+            self.systray.show(0)
 
         return new_state
 
@@ -368,24 +372,21 @@ class Systray(PowerEventListener):
         self.tray_object.set_blinking(False)
         self.tray_object.connect("popup_menu", self.rightclick_menu)
 
-        self.show_trayicon(1) ## fixed to one for now
+        self.show(1) ## fixed to one for now
 
-    def show_trayicon(self,value):
+    def show(self,value):
        setting = value
        ### only changing on startup
 
-       if setting == 3 : ## only show if charing or discharging
-            self.tray_object.set_visible(False)
-            return
-
        if setting == 1: ### always show an icon
                 self.tray_object.set_visible(True)
-                return
-
-       if setting == 2: ## only show when discharging
+       elif setting == 2: ## only show when discharging
             self.tray_object.set_visible(True)
+       elif setting == 3 : ## only show if charing or discharging
+            self.tray_object.set_visible(False)
+       else: ## Hide
+            self.tray_object.set_visible(False)
 
-            return
 
     def read_settings(self):
        settings=config()
