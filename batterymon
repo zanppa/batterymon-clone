@@ -21,6 +21,7 @@ use_capacity = False	# Force usage of capacity instead of calculations
 use_present = True		# Use the /present to check if the battery is present or not
 total_batt = True		# Show combined (total) battery
 all_batts = False		# Show all individual batteries
+theme = None
 
 _ = lambda msg: gettext.dgettext('batterymon', msg)
 logger = logging.getLogger("batterymon")
@@ -115,7 +116,7 @@ def detect_AcAdapters_and_Batteries(blacklist=None, whitelist=None):
             if devtype == 'Mains':
                 ac_adapters.append(AcAdapter(dirname))
             elif devtype == 'Battery':
-                batteries.append(Battery(dirname))
+                batteries.append(Battery(name, dirname))
             else:
                 logger.debug('Unknown type "{0}" for {1}'.format(devtype, dirname))
         except IOError as e:
@@ -145,9 +146,17 @@ class AcAdapter:
         return False
 
 
+BatteryInfo = namedtuple('BatteryInfo', 'charge_level remaining_time is_charging is_discharging present')
+
+
 class Battery:
-    def __init__(self, dirname):
+    def __init__(self, name, dirname):
+        global all_batts
+        global theme
+
+        self.name = name
         self._dirname = dirname
+        self.systray = None
 
         self.present = 0
         self.status = ''
@@ -157,6 +166,10 @@ class Battery:
         self.charge_full = 0
         self.current_now = 0
         self.charge_level = 0
+
+        # If all batteries should have icon
+        if all_batts:
+            self.systray = Systray(name, theme)
 
     def __eq__(self, _object):
         if isinstance(_object, Battery):
@@ -197,23 +210,26 @@ class Battery:
         global use_capacity
         global use_present
 
+        old_state = (self.present, self.charge_full, self.charge_now, self.current_now)
+
         self.present = (cat(self._dirname, 'present') == '1')
         logger.debug("battery.present: %s" % str(self.present))
 
         if self.present or (not use_present): 	# If battery is missing, skip this
+            self.present = True
             self.status = cat(self._dirname, 'status')
-            if self.status == 'Charging':
+            if self.status == 'Charging' or self.status == 'Full':	# Seems like full also indicates on AC
                 self.is_charging = True
                 self.is_discharging = False
             elif self.status == 'Discharging':
                 self.is_charging = False
                 self.is_discharging = True
-            elif self.status == '':		# IOError --> mmissing battery?
+            elif self.status == '':		# IOError --> missing battery?
                 self.is_charging = False
                 self.is_discharging = False
                 self.present = False
             else:
-                # "Unknown", "Not charging", "Full"
+                # "Unknown", "Not charging"
                 self.is_charging = False
                 self.is_discharging = False
 
@@ -255,12 +271,16 @@ class Battery:
             else:
                 self.charge_level = 0
 
-            return (self.present, self.charge_full, self.charge_now, self.current_now)
+            new_state = (self.present, self.charge_full, self.charge_now, self.current_now)
 
-        return (0, 0, 0, 0)
+        else:
+            new_state = (0, 0, 0, 0)
 
+        if self.systray and new_state != old_state:
+            # TODO: Needs remaining time
+            self.systray.battery_property_modified(BatteryInfo(self.charge_level, 0, self.is_charging, self.is_discharging, self.present))
 
-BatteryInfo = namedtuple('BatteryInfo', 'charge_level remaining_time is_charging is_discharging present')
+        return new_state
 
 
 class Theme:
@@ -514,6 +534,10 @@ class PowerManager:
         self.detect_ac_and_batt()
 
     def detect_ac_and_batt(self):
+        global total_batt
+        global all_batts
+        global theme
+
         new_adapters = []
         new_batteries = []
         adapters, batteries = detect_AcAdapters_and_Batteries(self.blacklist, self.whitelist)
@@ -538,10 +562,6 @@ class PowerManager:
 
         self.adapters = new_adapters
         self.batteries = new_batteries
-
-        # Since this is being called on a GTK timer, it needs to return True
-        # (if it returns False, the timer stops)
-        return True
 
     def __ac_property_modified_handler(self, present):
         for listener in self.listeners:
@@ -575,6 +595,8 @@ class PowerManager:
             return "%s %s" % (time, plural)
 
     def update(self):
+        global all_batts
+
         # reinitialize ac adapter and battery status in order to detect any
         # new/removed devices
         self.detect_ac_and_batt()
@@ -592,16 +614,18 @@ class PowerManager:
             self.__ac_property_modified_handler(state_adapter)
         self._ac_old_state = state_adapter
 
-        # Check combined battery status
+        # Check battery status
         batteries_present = 0
         state_full = state_now = state_power = 0
         for battery in self.batteries:
             res = battery.update()
+
             if res[0]: # Battery must be present for this calculation
                 batteries_present += 1
                 state_full += res[1]
                 state_now += res[2]
                 state_power += res[3]
+
 
         charge_level = 0
         if state_full > 0:
@@ -697,6 +721,7 @@ def main():
     global use_present
     global total_batt
     global all_batts
+    global theme
 
     logging.basicConfig(
         level=logging.INFO,
@@ -720,13 +745,13 @@ def main():
     notificator = Notificator('Total', theme, int(cmdline.notification_level), int(cmdline.critical_level))
     executor = CommandRunner('Total', int(cmdline.critical_level), cmdline.critical_command)
 
-    if total_batt:
-        systray = Systray('Total', theme)
-
     pm = PowerManager(cmdline.blacklist, cmdline.whitelist)
     pm.listeners.append(notificator)
-    pm.listeners.append(systray)
     pm.listeners.append(executor)
+
+    if total_batt:
+        systray = Systray('Total', theme)
+        pm.listeners.append(systray)
 
     pm.update()
     glib.timeout_add_seconds(int(cmdline.polling_interval), pm.update)
