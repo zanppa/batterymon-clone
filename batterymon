@@ -150,7 +150,7 @@ class AcAdapter:
         return False
 
 
-BatteryInfo = namedtuple('BatteryInfo', 'charge_level remaining_time is_charging is_discharging present')
+BatteryInfo = namedtuple('BatteryInfo', 'name charge_level remaining_time is_charging is_discharging present')
 
 
 class Battery:
@@ -284,7 +284,7 @@ class Battery:
 
         if self.systray and new_state != old_state:
             # TODO: Needs remaining time
-            self.systray.battery_property_modified(BatteryInfo(self.charge_level, 0, self.is_charging, self.is_discharging, self.present))
+            self.systray.battery_property_modified(BatteryInfo(self.name, self.charge_level, 'N/A', self.is_charging, self.is_discharging, self.present))
 
         return new_state
 
@@ -397,30 +397,30 @@ class Systray(PowerEventListener):
         # Setting the tooltip
         if not battery.present:
             if battery.is_charging:
-                self.tray_object.set_tooltip("On AC - No batteries present")
-                logger.debug('On AC - No batteries present')
+                self.tray_object.set_tooltip("{}\nOn AC - No battery".format(battery.name))
+                logger.debug('{}: On AC - No battery present'.format(battery.name))
             else:
-                self.tray_object.set_tooltip("No batteries present")
-                logger.debug('No batteries present')
+                self.tray_object.set_tooltip("{}\nNo battery".format(battery.name))
+                logger.debug('{}: No battery present'.format(battery.name))
 
         elif battery.is_charging:
             self.tray_object.set_tooltip(
-                _("Charging\nBattery Level: {battery.charge_level}%\nTime remaining: {battery.remaining_time}").format(battery=battery)
+                _("{battery.name}\nCharging\nBattery Level: {battery.charge_level}%\nTime remaining: {battery.remaining_time}").format(battery=battery)
                 #_("On AC (Charging)\nBattery Level: {charge_level}%\nTime remaining: {remaining_time}").format(battery=battery)
             )
-            logger.debug('Charging - charge_level={battery.charge_level}'.format(battery=battery))
+            logger.debug('{battery.name}: Charging - charge_level={battery.charge_level}'.format(battery=battery))
 
         elif battery.is_discharging:
             self.tray_object.set_tooltip(
-                _("Battery Level: {battery.charge_level}%\nTime remaining: {battery.remaining_time}").format(battery=battery)
+                _("{battery.name}\nBattery Level: {battery.charge_level}%\nTime remaining: {battery.remaining_time}").format(battery=battery)
             )
-            logger.debug('Discharging - charge_level={battery.charge_level} - time={battery.remaining_time}'.format(battery=battery))
+            logger.debug('{battery.name}: Discharging - charge_level={battery.charge_level} - time={battery.remaining_time}'.format(battery=battery))
 
         else:
             self.tray_object.set_tooltip(
-                _("Battery Level: {battery.charge_level}%").format(battery=battery)
+                _("{battery.name}\nBattery Level: {battery.charge_level}%").format(battery=battery)
             )
-            logger.debug('Charge_level={battery.charge_level}'.format(battery=battery))
+            logger.debug('{battery.name}: Charge_level={battery.charge_level}'.format(battery=battery))
 
         # Some helper variables
         levels_and_icons = [
@@ -677,7 +677,7 @@ class PowerManager:
 
         logger.debug("battery.remaining_time: %s" % str(remaining_time))
 
-        self.__battery_property_modified_handler(BatteryInfo(charge_level, remaining_time, is_charging, is_discharging, batteries_present > 0))
+        self.__battery_property_modified_handler(BatteryInfo('Total', charge_level, remaining_time, is_charging, is_discharging, batteries_present > 0))
 
         # Since this is being called on a GTK timer, it needs to return True
         # (if it returns False, the timer stops)
