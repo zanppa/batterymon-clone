@@ -149,6 +149,15 @@ class Battery:
     def __init__(self, dirname):
         self._dirname = dirname
 
+        self.present = 0
+        self.status = ''
+        self.is_charging = 0
+        self.is_discharging = 0
+        self.charge_now = 0
+        self.charge_full = 0
+        self.current_now = 0
+        self.charge_level = 0
+
     def __eq__(self, _object):
         if isinstance(_object, Battery):
             return self._dirname == _object._dirname
@@ -188,65 +197,65 @@ class Battery:
         global use_capacity
         global use_present
 
-        present = (cat(self._dirname, 'present') == '1')
-        logger.debug("battery.present: %s" % str(present))
+        self.present = (cat(self._dirname, 'present') == '1')
+        logger.debug("battery.present: %s" % str(self.present))
 
-        if present or (not use_present): 	# If battery is missing, skip this
-            charging_status = cat(self._dirname, 'status')
-            if charging_status == 'Charging':
-                is_charging = True
-                is_discharging = False
-            elif charging_status == 'Discharging':
-                is_charging = False
-                is_discharging = True
-            elif charging_status == '':		# IOError --> mmissing battery?
-                is_charging = False
-                is_discharging = False
-                present = False
+        if self.present or (not use_present): 	# If battery is missing, skip this
+            self.status = cat(self._dirname, 'status')
+            if self.status == 'Charging':
+                self.is_charging = True
+                self.is_discharging = False
+            elif self.status == 'Discharging':
+                self.is_charging = False
+                self.is_discharging = True
+            elif self.status == '':		# IOError --> mmissing battery?
+                self.is_charging = False
+                self.is_discharging = False
+                self.present = False
             else:
                 # "Unknown", "Not charging", "Full"
-                is_charging = False
-                is_discharging = False
+                self.is_charging = False
+                self.is_discharging = False
 
-            logger.debug("battery.is_charging: %s" % str(is_charging))
-            logger.debug("battery.is_discharging: %s" % str(is_discharging))
+            logger.debug("battery.is_charging: %s" % str(self.is_charging))
+            logger.debug("battery.is_discharging: %s" % str(self.is_discharging))
 
             # "(charge|energy)_full" should be preferred over
             # "(energy|charge)_full_design"
 
             # naming convention 1: charge_full, charge_now, current_now
             # naming convention 2: energy_full, energy_now, power_now
-            if not present: 	# Error in this branch
-                charge_full = 0
-                charge_now = 0
-                current_now = 0
+            if not self.present: 	# Error in this branch
+                self.charge_full = 0
+                self.charge_now = 0
+                self.current_now = 0
             elif use_capacity: # Use capacity only if specially requested
-                charge_full = 100
-                charge_now = int_or_zero(cat(self._dirname, 'capacity'))
-                current_now = 0
+                self.charge_full = 100
+                self.charge_now = int_or_zero(cat(self._dirname, 'capacity'))
+                self.current_now = 0
             elif not use_charge: # By default use energy
-                charge_full = int_or_zero(cat(self._dirname, 'energy_full'))
-                charge_now = int_or_zero(cat(self._dirname, 'energy_now'))
-                current_now = int_or_zero(cat(self._dirname, 'power_now'))
+                self.charge_full = int_or_zero(cat(self._dirname, 'energy_full'))
+                self.charge_now = int_or_zero(cat(self._dirname, 'energy_now'))
+                self.current_now = int_or_zero(cat(self._dirname, 'power_now'))
 
             # Use charge as last option
-            if present and (not use_capacity) and (use_charge or not (charge_full and charge_now)):
-                charge_full = int_or_zero(cat(self._dirname, 'charge_full'))
-                charge_now = int_or_zero(cat(self._dirname, 'charge_now'))
-                current_now = int_or_zero(cat(self._dirname, 'current_now'))
+            if self.present and (not use_capacity) and (use_charge or not (self.charge_full and self.charge_now)):
+                self.charge_full = int_or_zero(cat(self._dirname, 'charge_full'))
+                self.charge_now = int_or_zero(cat(self._dirname, 'charge_now'))
+                self.current_now = int_or_zero(cat(self._dirname, 'current_now'))
 
             # If didn't get some variables, put all as zero
-            if not (charge_full and charge_now):
-                charge_full = 0
-                charge_now = 0
-                current_now = 0
+            if not (self.charge_full and self.charge_now):
+                self.charge_full = 0
+                self.charge_now = 0
+                self.current_now = 0
 
-            if charge_full > 0:
-                charge_level = 100 * charge_now // charge_full
+            if self.charge_full > 0:
+                self.charge_level = 100 * self.charge_now // self.charge_full
             else:
-                charge_level = 0
+                self.charge_level = 0
 
-            return (present, charge_full, charge_now, current_now)
+            return (self.present, self.charge_full, self.charge_now, self.current_now)
 
         return (0, 0, 0, 0)
 
@@ -502,9 +511,9 @@ class PowerManager:
         self.blacklist = blacklist
         self.whitelist = whitelist
 
-        self.initialize_ac_ba()
+        self.detect_ac_and_batt()
 
-    def initialize_ac_ba(self):
+    def detect_ac_and_batt(self):
         new_adapters = []
         new_batteries = []
         adapters, batteries = detect_AcAdapters_and_Batteries(self.blacklist, self.whitelist)
@@ -568,7 +577,7 @@ class PowerManager:
     def update(self):
         # reinitialize ac adapter and battery status in order to detect any
         # new/removed devices
-        self.initialize_ac_ba()
+        self.detect_ac_and_batt()
 
         # Check whether any AC adapters are connected
         state_adapter = False
