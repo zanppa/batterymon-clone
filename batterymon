@@ -560,13 +560,12 @@ class PowerManager:
         i = 0
         while i < len(self.adapters):
             if not self.adapters[i] in new_adapters:
-                print('Remove adapter {}'.format(self.adapters.pop(i).name))
+                self.adapters.pop(i)
             else:
                 i += 1
         # Add new adapters
         for adapter in new_adapters:
             if not adapter in self.adapters:
-                print('Add adapter {}'.format(adapter.name))
                 adapter.create()
                 self.adapters.append(adapter)
 
@@ -574,13 +573,12 @@ class PowerManager:
         i = 0
         while i < len(self.batteries):
             if not self.batteries[i] in new_batteries:
-                print('Remove battery {}'.format(self.batteries.pop(i).name))
+                self.batteries.pop(i)
             else:
                 i += 1
         # Add new batteries
         for battery in new_batteries:
             if not battery in self.batteries:
-                print('Add battery {}'.format(battery.name))
                 battery.create()
                 self.batteries.append(battery)
 
